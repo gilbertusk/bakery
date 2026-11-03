@@ -29,6 +29,13 @@
       "when": 1793679155878,
       "tag": "0003_natural_tenebrous",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793680206924,
+      "tag": "0004_trigger_pengguna_baru",
+      "breakpoints": true
     }
   ]
 }

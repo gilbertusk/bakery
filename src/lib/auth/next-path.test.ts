@@ -10,8 +10,10 @@ describe('tujuanSetelahLogin', () => {
     },
   );
 
-  it.each([undefined, null, '', 'kasir', '//evil.com', 'https://evil.com', '/\\evil.com'])
-  ('menolak tujuan tidak aman %s', (path) => {
-    expect(tujuanSetelahLogin(path)).toBe('/dashboard');
-  });
+  it.each([undefined, null, '', 'kasir', '//evil.com', 'https://evil.com', '/\\evil.com'])(
+    'menolak tujuan tidak aman %s',
+    (path) => {
+      expect(tujuanSetelahLogin(path)).toBe('/dashboard');
+    },
+  );
 });

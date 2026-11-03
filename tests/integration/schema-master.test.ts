@@ -2,10 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
-  authUsers,
   bahan,
   konversiSatuan,
-  pengguna,
   pengaturanToko,
   produk,
   produkKomponen,
@@ -13,16 +11,10 @@ import {
   resepAdonanItem,
 } from '@/db/schema';
 
-import { resetData, testDb } from './setup/db';
+import { buatPenggunaTest, resetData, testDb } from './setup/db';
 
 async function pembuatPengguna() {
-  const id = randomUUID();
-  const email = `${id}@contoh.test`;
-
-  await testDb.insert(authUsers).values({ id });
-  await testDb.insert(pengguna).values({ id, nama: 'Pemilik Test', email, peran: 'pemilik' });
-
-  return id;
+  return buatPenggunaTest();
 }
 
 async function buatDataDasar() {

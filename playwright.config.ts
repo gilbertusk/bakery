@@ -26,6 +26,8 @@ export default defineConfig({
   webServer: {
     command: 'pnpm dev',
     url: BASE_URL,
+    // Nilai env asli tetap dipakai bila ada; skip hanya mengisi fallback yang kosong.
+    env: { SKIP_ENV_VALIDATION: process.env.SKIP_ENV_VALIDATION ?? '1' },
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
   },

@@ -20,6 +20,7 @@
     "db:check": "tsx scripts/db-check.ts",
     "db:seed": "tsx scripts/seed-sistem.ts",
     "db:seed:contoh": "tsx scripts/seed-contoh.ts",
+    "buat-pemilik": "tsx scripts/buat-pemilik.ts",
     "db:test:up": "docker compose up -d --wait",
     "db:test:down": "docker compose down"
   },
