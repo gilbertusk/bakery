@@ -1,0 +1,61 @@
+name: Migrasi produksi
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+concurrency:
+  group: migrasi-produksi
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  migrasi:
+    name: db:migrate + db:seed
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Required reviewer diatur di Settings → Environments → production.
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Pada workflow_run, pakai commit yang baru lulus CI.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Cek secret
+        run: |
+          if [ -z "$DATABASE_URL_DIRECT" ]; then
+            echo "::error::Secret DATABASE_URL_DIRECT_PROD belum diisi di environment production"
+            exit 1
+          fi
+        env:
+          DATABASE_URL_DIRECT: ${{ secrets.DATABASE_URL_DIRECT_PROD }}
+
+      - name: Terapkan migrasi
+        run: pnpm db:migrate
+        env:
+          DATABASE_URL_DIRECT: ${{ secrets.DATABASE_URL_DIRECT_PROD }}
+
+      - name: Seed sistem
+        run: pnpm db:seed
+        env:
+          DATABASE_URL_DIRECT: ${{ secrets.DATABASE_URL_DIRECT_PROD }}
