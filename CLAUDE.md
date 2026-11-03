@@ -187,6 +187,20 @@ Pakai fungsi ini, jangan membuat ulang. `Tx` = transaksi Drizzle (`db.transactio
   - `redirect()`/`notFound()` diteruskan.
 - `HasilAksi<T>`, `PesanError` (juga di `@/lib/error`): lempar `new PesanError('…')` untuk pesan bisnis yang aman ditampilkan.
 
+**`@/lib/hpp`** (murni, Decimal penuh, tanpa pembulatan kecuali `saranHarga`; input salah → `HitungError extends PesanError`)
+
+- `keSatuanDasar(takaran, nilaiKonversi | null): Decimal`: §7.1, `null` = sudah satuan dasar
+- `kemasanKeDasar(jumlah, satuanKemasan: 'kg'|'g'|'l'|'ml'|'pcs'|'lusin', satuanDasar): Decimal`
+- `hargaPerSatuanDasar(totalHarga, qtyDasar): Decimal`: §7.2
+- `hargaBaruBahan({ metode, stokLama, hargaLama, qtyBeli, hargaBeli }): Decimal`: §7.8, stok minus dianggap 0
+- `biayaAdonan({ items: { takaranDasar, hargaPerSatuan }[], hasilGram }): { biayaTotal; biayaPerGram }`: §7.3
+- `hasilOtomatis(items: { takaranDasar, satuanDasar, namaBahan }[]): { hasilGram; peringatan: string[] }`: F-RSP-02 KP1
+- `hitungMargin(hpp, hargaJual): { marginRp; marginPersen: Decimal | null }`: persen berupa pecahan
+- `saranHarga(hpp, targetMargin, kelipatan = 500): number`: §7.5, bulat ke atas
+- `faktorSkala(InputSkala): Decimal`: `manual` | `bulat` | `kotak` | `campuran` (rasio luas), §7.6
+- `skalakanItems(items, faktor)`: salinan dengan `takaran`/`takaranDasar` Decimal
+- `KONVERSI_UMUM` (`@/lib/hpp/konversi-umum`): saran konversi sdm/cup
+
 **Lainnya**
 
 - `@/lib/log`: `log.info | log.warn | log.error(pesan: string, konteks?: { error?, ...lainnya })`, JSON satu baris. Pengganti `console.log`.
