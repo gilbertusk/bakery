@@ -1,5 +1,13 @@
 {
   "version": "7",
   "dialect": "postgresql",
-  "entries": []
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1793677518440,
+      "tag": "0000_brief_reaper",
+      "breakpoints": true
+    }
+  ]
 }

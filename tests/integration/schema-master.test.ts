@@ -13,13 +13,13 @@ import {
   resepAdonanItem,
 } from '@/db/schema';
 
-import { resetData, testDb, testSql } from './setup/db';
+import { resetData, testDb } from './setup/db';
 
 async function pembuatPengguna() {
   const id = randomUUID();
   const email = `${id}@contoh.test`;
 
-  await testSql`INSERT INTO auth.users (id, email) VALUES (${id}, ${email})`;
+  await testDb.insert(authUsers).values({ id });
   await testDb.insert(pengguna).values({ id, nama: 'Pemilik Test', email, peran: 'pemilik' });
 
   return id;
@@ -93,9 +93,7 @@ describe('constraint schema master dan resep', () => {
 
   it('menolak nama bahan duplikat tanpa membedakan kapital', async () => {
     await pembuatPengguna();
-    await testDb
-      .insert(bahan)
-      .values({ nama: 'Tepung', kategori: 'tepung', satuanDasar: 'g' });
+    await testDb.insert(bahan).values({ nama: 'Tepung', kategori: 'tepung', satuanDasar: 'g' });
 
     await expect(
       testDb.insert(bahan).values({ nama: 'tepung', kategori: 'tepung', satuanDasar: 'g' }),

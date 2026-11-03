@@ -15,6 +15,7 @@ export default defineConfig({
   dialect: 'postgresql',
   dbCredentials: { url: databaseUrl },
   casing: 'snake_case',
+  schemaFilter: ['public'],
   strict: true,
   verbose: true,
 });
