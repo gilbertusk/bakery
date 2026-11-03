@@ -27,5 +27,10 @@ Vercel Hobby (gratis) + Supabase.
 - Satu run integrasi sempat gagal karena container baru belum benar-benar siap: `pg_isready` lewat
   socket lapor siap saat server init sementara masih jalan. Health check di `docker-compose.yml`
   dan `ci.yml` sekarang memakai `-h 127.0.0.1`.
-- Workflow CI dan migrasi belum terbukti hijau di GitHub sampai repo di-push dan run pertama selesai.
+- Run CI pertama di GitHub gagal di `typecheck`: `PageProps` adalah tipe hasil generate Next di
+  `.next/types`, yang tidak ada di checkout bersih. Skrip `typecheck` sekarang `next typegen && tsc
+  --noEmit` (commit `0f8064d`); run berikutnya hijau.
+- `migrate.yml` berjalan setelah CI hijau dan berhenti di langkah "Cek secret" karena
+  `DATABASE_URL_DIRECT_PROD` belum diisi (sesuai harapan). Environment `production` sudah diberi
+  required reviewer `gilbertusk` dan dibatasi ke branch `main`.
 - Deploy Vercel dan login produksi belum bisa dicek: menunggu proyek Supabase dan env di Vercel.
