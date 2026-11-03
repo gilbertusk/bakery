@@ -3,6 +3,12 @@ import { describe, expect, it } from 'vitest';
 import { BAHAN, RESEP_BOLU, RESEP_BROWNIES } from './__fixtures__/brownies';
 import { kebutuhanUntukPesanan, pemakaianBahanProduksi } from './kebutuhan';
 
+const RESEP_UTAMA = {
+  resepId: RESEP_BROWNIES.id,
+  hasilGram: RESEP_BROWNIES.hasilGram,
+  items: RESEP_BROWNIES.items,
+};
+
 const keObjek = (peta: Map<string, { toString(): string }>) =>
   Object.fromEntries([...peta].map(([k, v]) => [k, v.toString()]));
 
@@ -29,7 +35,7 @@ const bahan = (bahanId: string, takaranDasar: string) => ({
 describe('pemakaianBahanProduksi', () => {
   it('skala 1,5 + topping keju + kemasan: resep utama dihitung sekali', () => {
     const hasil = pemakaianBahanProduksi({
-      resepUtama: RESEP_BROWNIES,
+      resepUtama: RESEP_UTAMA,
       faktorSkala: '1.5',
       produk: [
         {
@@ -57,7 +63,7 @@ describe('pemakaianBahanProduksi', () => {
 
   it('adonan lain dipotong proporsional terhadap gram yang dipakai', () => {
     const hasil = pemakaianBahanProduksi({
-      resepUtama: RESEP_BROWNIES,
+      resepUtama: RESEP_UTAMA,
       faktorSkala: 1,
       produk: [{ pcsAktual: 10, komponen: [ADONAN_BROWNIES('50'), ADONAN_BOLU('20')] }],
     });
@@ -70,7 +76,7 @@ describe('pemakaianBahanProduksi', () => {
 
   it('pcs aktual 0: hanya resep utama yang terpakai', () => {
     const hasil = pemakaianBahanProduksi({
-      resepUtama: RESEP_BROWNIES,
+      resepUtama: RESEP_UTAMA,
       faktorSkala: 1,
       produk: [{ pcsAktual: 0, komponen: [bahan(BAHAN.keju.id, '100')] }],
     });
@@ -79,7 +85,7 @@ describe('pemakaianBahanProduksi', () => {
 
   it('menolak input tidak valid', () => {
     const jalankan = (ubah: Partial<Parameters<typeof pemakaianBahanProduksi>[0]>) => () =>
-      pemakaianBahanProduksi({ resepUtama: RESEP_BROWNIES, faktorSkala: 1, produk: [], ...ubah });
+      pemakaianBahanProduksi({ resepUtama: RESEP_UTAMA, faktorSkala: 1, produk: [], ...ubah });
 
     expect(jalankan({ faktorSkala: 0 })).toThrow('Faktor skala harus lebih dari 0');
     expect(jalankan({ produk: [{ pcsAktual: -1, komponen: [] }] })).toThrow(
@@ -98,7 +104,7 @@ describe('pemakaianBahanProduksi', () => {
     );
     expect(
       jalankan({
-        resepUtama: { ...RESEP_BROWNIES, items: [{ bahanId: 'tepung', takaranDasar: '-1' }] },
+        resepUtama: { ...RESEP_UTAMA, items: [{ bahanId: 'tepung', takaranDasar: '-1' }] },
       }),
     ).toThrow('Takaran tidak boleh negatif');
   });

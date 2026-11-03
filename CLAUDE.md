@@ -199,7 +199,14 @@ Pakai fungsi ini, jangan membuat ulang. `Tx` = transaksi Drizzle (`db.transactio
 - `saranHarga(hpp, targetMargin, kelipatan = 500): number`: §7.5, bulat ke atas
 - `faktorSkala(InputSkala): Decimal`: `manual` | `bulat` | `kotak` | `campuran` (rasio luas), §7.6
 - `skalakanItems(items, faktor)`: salinan dengan `takaran`/`takaranDasar` Decimal
+- `hitungHppProduk({ komponen, biayaTambahan }): RincianHpp`: §7.4; `perPeran`, `perKomponen`, `biayaBahan`, `overhead { perPcs, persen, perBatch, total }`, `hpp`, `adonanUtama { resepId, pcsPerResep } | null`, `peringatan`. Adonan utama = gram per pcs terbesar; per batch diabaikan (dengan peringatan) bila tanpa adonan atau `pcsPerResep` 0.
+- `alokasiProduksi({ biayaAdonan, hasil[] }): { produkId, alokasiAdonan, hppAktual | null }[]`: §7.7, bobot = gram per pcs × pcs rencana
+- `pemakaianBahanProduksi({ resepUtama, faktorSkala, produk[] }): Map<bahanId, Decimal>`: F-PRO-02, resep utama × skala sekali, adonan lain proporsional, bahan langsung × pcs aktual
+- `kebutuhanUntukPesanan(produk: { qty, komponen }[]): Map<bahanId, Decimal>`: semua adonan proporsional
+- `KonteksHpp`: data mentah bahan, resep, produk (dipakai query 1.8). `hitungHppSemua(konteks): Map<produkId, RincianHpp>`
+- `simulasiKenaikan(konteks, { bahanId, persen }[]): DampakSimulasi[]`: F-PRD-07, hanya produk berubah, urut selisih menurun
 - `KONVERSI_UMUM` (`@/lib/hpp/konversi-umum`): saran konversi sdm/cup
+- Fixture test Brownies: `src/lib/hpp/__fixtures__/brownies.ts`
 
 **Lainnya**
 
