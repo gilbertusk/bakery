@@ -17,6 +17,12 @@ describe('@/lib/hpp', () => {
       'saranHarga',
       'faktorSkala',
       'skalakanItems',
+      'hitungHppProduk',
+      'alokasiProduksi',
+      'pemakaianBahanProduksi',
+      'kebutuhanUntukPesanan',
+      'hitungHppSemua',
+      'simulasiKenaikan',
     ]) {
       expect(typeof hpp[nama as keyof typeof hpp], nama).toBe('function');
     }
