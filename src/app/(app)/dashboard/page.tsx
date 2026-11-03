@@ -1,34 +1,33 @@
-import { LogOut } from 'lucide-react';
+import { ShieldAlert } from 'lucide-react';
 import type { Metadata } from 'next';
-import { Suspense } from 'react';
 
-import { Button } from '@/components/ui/button';
-import { requirePengguna } from '@/lib/auth';
-import { keluar } from '@/lib/auth/aksi';
+import { PageHeader } from '@/components/page-header';
+import { peranUntuk } from '@/config/navigasi';
+import { requirePeran } from '@/lib/auth';
 
 export const metadata: Metadata = { title: 'Dashboard' };
 
-async function Sapaan() {
-  const pengguna = await requirePengguna();
-  return (
-    <h1 className="text-2xl font-semibold">
-      Halo, {pengguna.nama} ({pengguna.peran})
-    </h1>
-  );
-}
+export default async function HalamanDashboard({ searchParams }: PageProps<'/dashboard'>) {
+  const [pengguna, { pesan }] = await Promise.all([
+    requirePeran(...peranUntuk('/dashboard')),
+    searchParams,
+  ]);
 
-export default function HalamanDashboard() {
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
-      <Suspense fallback={<p className="text-muted-foreground">Memuat…</p>}>
-        <Sapaan />
-      </Suspense>
-      <form action={keluar}>
-        <Button type="submit" variant="outline" className="h-11">
-          <LogOut />
-          Keluar
-        </Button>
-      </form>
-    </main>
+    <>
+      {pesan === 'tidak-berwenang' ? (
+        <div
+          role="alert"
+          className="border-destructive/30 bg-destructive/10 text-destructive flex items-start gap-3 rounded-lg border p-3 text-sm"
+        >
+          <ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
+          Anda tidak memiliki akses ke halaman tersebut.
+        </div>
+      ) : null}
+      <PageHeader
+        judul={`Halo, ${pengguna.nama} (${pengguna.peran})`}
+        deskripsi="Ringkasan harian akan tampil di sini."
+      />
+    </>
   );
 }
