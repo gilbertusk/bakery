@@ -123,6 +123,75 @@ type HasilAksi<T> =
   { ok: true; data: T } | { ok: false; error: string; fieldErrors?: Record<string, string[]> };
 ```
 
+## Utilitas inti
+
+Pakai fungsi ini, jangan membuat ulang. `Tx` = transaksi Drizzle (`db.transaction(async (tx) => …)`).
+`NilaiAngka` = `string | number | Decimal`.
+
+**`@/lib/angka`** (decimal.js, presisi 30, ROUND_HALF_UP)
+
+- `D(nilai: NilaiAngka): Decimal`
+- `keNumeric(nilai: NilaiAngka, skala: number): string`: untuk kolom `numeric`
+- `bulatRupiah(nilai: NilaiAngka): number`: integer half up, tanpa `-0`
+- `bulatKeAtas(nilai: NilaiAngka, kelipatan: number): number`
+- `isNol`, `isNegatif`, `isPositif`, `isBulat` `(nilai: NilaiAngka): boolean`
+- `jumlah(daftar: readonly NilaiAngka[]): Decimal`
+
+**`@/lib/format`** (tampilan, zona `ZONA_WIB = 'Asia/Jakarta'`)
+
+- `formatRupiah(nilai: NilaiAngka): string`: `"Rp15.000"`, `"-Rp15.000"`
+- `formatRupiahDesimal(nilai: NilaiAngka, desimal = 2): string`: `"Rp13,50"`
+- `formatAngka(nilai: NilaiAngka, maksDesimal = 4): string`: `"1.200,5"`
+- `formatTakaran(nilai: NilaiAngka, satuan: string): string`: `"36 g"`
+- `parseRupiah(input: string): number | null`: null bila tidak valid
+- `formatTanggal(waktu: Date | string): string`: `"3 Nov 2026"`; string `YYYY-MM-DD` dianggap tanggal WIB
+- `formatWaktu(waktu: Date | string): string`: `"3 Nov 2026 14.05"`
+- `tanggalWib(waktu: Date): string` dan `hariIniWib(sekarang?: Date): string`: `"YYYY-MM-DD"`
+- `rentangHariWib(tanggal: string): { mulai: Date; selesai: Date }`: `selesai` eksklusif, pakai `waktu >= mulai AND waktu < selesai`
+
+**`@/lib/nomor`**
+
+- `ambilNomor(tx: Tx, prefix: PrefixNomor, tanggal?: string): Promise<string>`: `PrefixNomor = 'NT' | 'PB' | 'PR' | 'PO' | 'INV'`. Wajib di transaksi yang sama dengan penyimpanan dokumen.
+- `formatNomor(prefix, tanggal, urutan): string`: `NT-261103-001`, 4 digit setelah 999
+
+**`@/lib/stok`**
+
+- `catatMutasi(tx: Tx, input: InputMutasi): Promise<{ saldoSesudah: string; menjadiMinus: boolean }>`
+  - `InputMutasi = { jenis, target: { bahanId } | { produkId }, qty (bertanda), nilaiSatuan, alasan?, sumberTipe, sumberId, dibuatOleh, izinkanMinus }`
+  - Mengunci baris (`FOR UPDATE`). Melempar `StokTidakCukupError { nama, stok, diminta }` bila minus dilarang, `PesanError` bila qty nol, qty produk pecahan, atau target tidak ada.
+- `hitungUlangSaldo(tx: Tx, target: TargetStok): Promise<Decimal>`: Σ qty buku besar
+- `StokTidakCukupError`
+
+**`@/lib/kas`**
+
+- `catatKas(tx: Tx, input: InputKas): Promise<baris kas>`
+  - `InputKas = { kategori (nama KATEGORI_KAS atau id), jenis?, akun, nominal (int > 0), keterangan, sumberTipe?, sumberId?, dibuatOleh, waktu? }`
+  - Jenis kas selalu mengikuti kategori; `jenis` yang beda ditolak.
+- `akunDariMetode(metode: MetodeBayar): AkunKas`: tunai → `tunai`, transfer/qris → `rekening`
+- `batalkanKasDariSumber(tx: Tx, sumberTipe: SumberTipe, sumberId: string): Promise<number>`
+- `saldoAkun(db: Db | Tx): Promise<Record<AkunKas, number>>` dan `saldoAkun(db, akun): Promise<number>`: kas `dibatalkan` tidak dihitung
+- `KATEGORI_KAS` (juga di `@/lib/kas/kategori`)
+
+**`@/lib/audit`**
+
+- `catatAudit(tx: Tx, input: InputAudit): Promise<baris | null>`
+  - `InputAudit = { penggunaId, tabel, recordId, aksi: 'insert' | 'update' | 'batal', dataLama?, dataBaru? }`
+  - `update` hanya menyimpan field yang berubah (`"15.0000"` = `"15"`); tanpa perubahan tidak menulis dan mengembalikan `null`.
+- `selisihData(lama, baru): { lama; baru } | null`
+
+**`@/lib/aksi`** (server-only)
+
+- `aksi({ schema, peran?, jalankan: (input, pengguna) => Promise<T> }): (input: unknown) => Promise<HasilAksi<T>>`
+  - Urutan: cek login, cek peran, parse Zod (`fieldErrors` per path; error tingkat form di `_form`), jalankan.
+  - Error dipetakan: `PesanError` (termasuk `StokTidakCukupError`), `BelumLoginError`, `TidakBerwenangError` → pesannya; Postgres `23505` → "Data dengan nama ini sudah ada"; `23503` → "Data masih dipakai di tempat lain"; lainnya dicatat `log.error` dan menjadi "Terjadi kesalahan, coba lagi".
+  - `redirect()`/`notFound()` diteruskan.
+- `HasilAksi<T>`, `PesanError` (juga di `@/lib/error`): lempar `new PesanError('…')` untuk pesan bisnis yang aman ditampilkan.
+
+**Lainnya**
+
+- `@/lib/log`: `log.info | log.warn | log.error(pesan: string, konteks?: { error?, ...lainnya })`, JSON satu baris. Pengganti `console.log`.
+- `@/lib/zod-id`: import sekali untuk memasang pesan Zod bahasa Indonesia secara global (sudah diimpor oleh `aksi.ts`; form client perlu `import '@/lib/zod-id'`). `pesanPertama(error: ZodError): string`.
+
 ## Testing
 
 - **TDD** untuk `src/lib/hpp` dan semua logika mutasi stok/kas: test dulu, lalu implementasi.

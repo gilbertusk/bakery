@@ -1,14 +1,17 @@
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
-import { formatRupiahSementara } from './rupiah-text';
+import { RupiahText } from './rupiah-text';
 
-describe('formatRupiahSementara', () => {
+describe('RupiahText', () => {
   it.each([
     [15000, 'Rp15.000'],
-    [0, 'Rp0'],
-    [1250000, 'Rp1.250.000'],
     [-5000, '-Rp5.000'],
-  ])('memformat %d menjadi %s', (nilai, hasil) => {
-    expect(formatRupiahSementara(nilai)).toBe(hasil);
+    ['2675.5', 'Rp2.676'],
+  ])('menampilkan %s sebagai %s', (nilai, hasil) => {
+    const html = renderToStaticMarkup(createElement(RupiahText, { nilai }));
+    expect(html).toContain(`>${hasil}</span>`);
+    expect(html).toContain('tabular-nums');
   });
 });

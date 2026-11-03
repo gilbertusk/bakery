@@ -10,6 +10,7 @@ import {
   resepAdonanItem,
   stokMutasi,
 } from '@/db/schema';
+import { catatMutasi } from '@/lib/stok';
 
 import { seedSistem } from './sistem';
 
@@ -227,7 +228,6 @@ export async function seedContoh(database: Db) {
       if (!existing) await tx.insert(produkKomponen).values(component);
     }
 
-    // TODO(0.7): ganti insert langsung ini dengan catatMutasi().
     for (const data of BAHAN_CONTOH) {
       const target = bahanByName.get(data.nama);
       if (!target) continue;
@@ -244,16 +244,17 @@ export async function seedContoh(database: Db) {
         .limit(1);
       if (existing) continue;
 
-      await tx.insert(stokMutasi).values({
+      await catatMutasi(tx, {
         jenis: 'stok_awal',
-        bahanId: target.id,
+        target: { bahanId: target.id },
         qty: data.stok,
-        saldoSesudah: data.stok,
         nilaiSatuan: data.harga,
         alasan: 'Stok awal data contoh',
         sumberTipe: 'manual',
+        sumberId: null,
+        dibuatOleh: null,
+        izinkanMinus: false,
       });
-      await tx.update(bahan).set({ stok: data.stok }).where(eq(bahan.id, target.id));
     }
   });
 }

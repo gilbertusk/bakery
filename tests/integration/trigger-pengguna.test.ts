@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { testSql } from './setup/db';
+import { resetData, testSql } from './setup/db';
 
 type PenggunaRow = {
   nama: string;
@@ -30,7 +30,7 @@ async function buatAuthUser(
 
 describe('trigger pengguna baru', () => {
   beforeEach(async () => {
-    await testSql`DELETE FROM auth.users`;
+    await resetData();
   });
 
   it('menjadikan pengguna pertama sebagai pemilik dan memakai nama metadata', async () => {
