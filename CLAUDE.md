@@ -27,7 +27,19 @@ Dokumen acuan (baca bagian yang relevan sebelum mengerjakan tugas):
 | `pnpm test:int`                     | Test integrasi (butuh DB test, mulai langkah 0.2) |
 | `pnpm test:e2e`                     | Test E2E (Playwright)                             |
 | `pnpm test:all`                     | Unit + integrasi + E2E                            |
-| `pnpm db:*`                         | Ditambahkan di langkah 0.2                        |
+| `pnpm db:generate` / `db:migrate`   | Generate dan jalankan migrasi Drizzle             |
+| `pnpm db:studio` / `db:check`       | Buka Drizzle Studio / cek koneksi runtime         |
+| `pnpm db:test:up` / `db:test:down`  | Hidupkan / matikan PostgreSQL test lokal          |
+
+## Setup lokal
+
+1. Jalankan `pnpm install`.
+2. Salin `.env.example` ke `.env.local`, lalu isi dari dashboard Supabase. Jangan commit secret.
+3. Jalankan `pnpm db:check` untuk memeriksa koneksi runtime.
+4. Jalankan `pnpm db:test:up`, lalu `pnpm test:int` untuk test integrasi lokal.
+5. Matikan database test dengan `pnpm db:test:down` setelah selesai.
+
+Panduan lengkap tersedia di [docs/setup.md](docs/setup.md).
 
 ## Stack
 
