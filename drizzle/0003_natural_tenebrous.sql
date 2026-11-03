@@ -1,0 +1,1 @@
+ALTER TABLE "stok_mutasi" ALTER COLUMN "dibuat_oleh" DROP NOT NULL;

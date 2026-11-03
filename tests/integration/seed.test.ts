@@ -18,9 +18,7 @@ describe('seed sistem', () => {
     await seedSistem(testDb);
     await seedSistem(testDb);
 
-    const [result] = await testDb
-      .select({ count: sql<number>`count(*)::int` })
-      .from(kategoriKas);
+    const [result] = await testDb.select({ count: sql<number>`count(*)::int` }).from(kategoriKas);
 
     expect(result?.count).toBe(14);
   });

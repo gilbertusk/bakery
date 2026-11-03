@@ -151,7 +151,7 @@ export const stokMutasi = pgTable(
     alasan: text('alasan'),
     sumberTipe: sumberTipeEnum('sumber_tipe'),
     sumberId: uuid('sumber_id'),
-    dibuatOleh: dibuatOleh(() => pengguna.id),
+    dibuatOleh: uuid('dibuat_oleh').references(() => pengguna.id, { onDelete: 'restrict' }),
   },
   (table) => [
     check(
