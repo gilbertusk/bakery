@@ -20,10 +20,10 @@ const EXPECTED_PUBLIC_TABLES = [
   'po_pembayaran',
   'pre_order',
   'pre_order_item',
-  'produksi',
-  'produksi_hasil',
   'produk',
   'produk_komponen',
+  'produksi',
+  'produksi_hasil',
   'resep_adonan',
   'resep_adonan_item',
   'riwayat_harga',
@@ -43,7 +43,9 @@ describe('RLS deny-all', () => {
       ORDER BY c.relname
     `;
     const actualNames = tables.map(({ tableName }) => tableName);
-    const withoutRls = tables.filter(({ rlsEnabled }) => !rlsEnabled).map(({ tableName }) => tableName);
+    const withoutRls = tables
+      .filter(({ rlsEnabled }) => !rlsEnabled)
+      .map(({ tableName }) => tableName);
 
     expect(actualNames, 'Daftar tabel public berbeda dari ERD').toEqual(EXPECTED_PUBLIC_TABLES);
     expect(withoutRls, `RLS belum aktif: ${withoutRls.join(', ')}`).toEqual([]);

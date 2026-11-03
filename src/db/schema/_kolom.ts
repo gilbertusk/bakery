@@ -16,5 +16,5 @@ export function diubahPada() {
 }
 
 export function dibuatOleh(referensi: () => AnyPgColumn) {
-  return uuid('dibuat_oleh').references(referensi, { onDelete: 'restrict' });
+  return uuid('dibuat_oleh').notNull().references(referensi, { onDelete: 'restrict' });
 }
