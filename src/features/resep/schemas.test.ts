@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import '@/lib/zod-id';
 
-import { resepSchema } from './schemas';
+import { duplikatResepSchema, resepSchema, simpanLoyangResepSchema } from './schemas';
 
 const BAHAN_1 = '11111111-1111-4111-8111-111111111111';
 const BAHAN_2 = '22222222-2222-4222-8222-222222222222';
@@ -104,5 +104,36 @@ describe('resepSchema', () => {
         ],
       }).success,
     ).toBe(true);
+  });
+});
+
+describe('schema duplikat dan loyang resep', () => {
+  it('merapikan nama baru dan memvalidasi ID resep', () => {
+    expect(duplikatResepSchema.parse({ resepId: BAHAN_1, namaBaru: '  Brownies Keju  ' })).toEqual({
+      resepId: BAHAN_1,
+      namaBaru: 'Brownies Keju',
+    });
+    expect(
+      duplikatResepSchema.safeParse({ resepId: 'bukan-id', namaBaru: 'Brownies Keju' }).success,
+    ).toBe(false);
+    expect(duplikatResepSchema.safeParse({ resepId: BAHAN_1, namaBaru: ' ' }).success).toBe(false);
+  });
+
+  it('menerima loyang bulat atau kotak yang lengkap', () => {
+    expect(
+      simpanLoyangResepSchema.parse({
+        resepId: BAHAN_1,
+        loyang: { bentuk: 'bulat', diameterCm: '24,5' },
+      }),
+    ).toEqual({
+      resepId: BAHAN_1,
+      loyang: { bentuk: 'bulat', diameterCm: '24.5' },
+    });
+    expect(
+      simpanLoyangResepSchema.safeParse({
+        resepId: BAHAN_1,
+        loyang: { bentuk: 'kotak', panjangCm: '20', lebarCm: '' },
+      }).success,
+    ).toBe(false);
   });
 });

@@ -7,6 +7,7 @@ import {
   formatRupiah,
   formatRupiahDesimal,
   formatTakaran,
+  formatTakaranSkala,
   formatTanggal,
   formatWaktu,
   hariIniWib,
@@ -62,6 +63,31 @@ describe('formatTakaran', () => {
   it('menggabungkan angka dan satuan', () => {
     expect(formatTakaran('36', 'g')).toBe('36 g');
     expect(formatTakaran('1200.500', 'ml')).toBe('1.200,5 ml');
+  });
+});
+
+describe('formatTakaranSkala', () => {
+  it('gram dibulatkan wajar ke satu angka desimal', () => {
+    expect(formatTakaranSkala('333.333', 'g')).toEqual({
+      teks: '333,3 g',
+      catatan: null,
+    });
+  });
+
+  it('butir dibulatkan ke 0,5 terdekat dengan catatan', () => {
+    expect(formatTakaranSkala('3.24', 'butir')).toEqual({
+      teks: '3 butir',
+      catatan: 'Takaran butir dibulatkan ke 0,5 terdekat',
+    });
+    expect(formatTakaranSkala('3.26', 'Butir')).toEqual({
+      teks: '3,5 Butir',
+      catatan: 'Takaran butir dibulatkan ke 0,5 terdekat',
+    });
+  });
+
+  it('satuan lain memakai maksimal dua desimal', () => {
+    expect(formatTakaranSkala('4.567', 'sdm')).toEqual({ teks: '4,57 sdm', catatan: null });
+    expect(formatTakaranSkala('2', 'pcs')).toEqual({ teks: '2 pcs', catatan: null });
   });
 });
 
