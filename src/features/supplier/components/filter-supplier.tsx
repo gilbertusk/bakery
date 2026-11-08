@@ -6,8 +6,7 @@ import { useEffect, useState, useTransition } from 'react';
 
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-
-import { type StatusFilter } from '../filter';
+import type { StatusFilter } from '@/lib/filter';
 
 export function FilterSupplier({ q, status }: { q: string; status: StatusFilter }) {
   const router = useRouter();

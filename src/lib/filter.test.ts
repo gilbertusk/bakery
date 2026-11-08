@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { aktifDariStatus, bacaStatus } from './filter';
 
-describe('filter supplier', () => {
+describe('filter status aktif', () => {
   it.each([
     [undefined, 'aktif'],
     ['aktif', 'aktif'],

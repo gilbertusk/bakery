@@ -19,9 +19,9 @@ import { peranUntuk } from '@/config/navigasi';
 import { AksiSupplier } from '@/features/supplier/components/aksi-supplier';
 import { FilterSupplier } from '@/features/supplier/components/filter-supplier';
 import { FormSupplier } from '@/features/supplier/components/form-supplier';
-import { aktifDariStatus, bacaStatus } from '@/features/supplier/filter';
 import { type BarisSupplier, daftarSupplier } from '@/features/supplier/queries';
 import { requirePeran } from '@/lib/auth';
+import { aktifDariStatus, bacaStatus } from '@/lib/filter';
 
 export const metadata: Metadata = { title: 'Supplier' };
 

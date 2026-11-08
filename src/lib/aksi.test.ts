@@ -132,6 +132,21 @@ describe('aksi', () => {
     expect(errorLog).not.toHaveBeenCalled();
   });
 
+  it('PesanError dengan field juga mengisi fieldErrors', async () => {
+    const simpan = aksi({
+      schema,
+      jalankan: async () => {
+        throw new PesanError('Bahan dengan nama ini sudah ada', { field: 'nama' });
+      },
+    });
+
+    await expect(simpan({ nama: 'x', harga: 1 })).resolves.toEqual({
+      ok: false,
+      error: 'Bahan dengan nama ini sudah ada',
+      fieldErrors: { nama: ['Bahan dengan nama ini sudah ada'] },
+    });
+  });
+
   it('error tak dikenal dicatat ke logger dan pesan umum dikembalikan', async () => {
     const errorLog = vi.spyOn(log, 'error').mockImplementation(() => undefined);
     const galat = new Error('detail internal yang tidak boleh bocor');

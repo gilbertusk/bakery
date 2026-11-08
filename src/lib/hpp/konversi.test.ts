@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
 import { HitungError } from './error';
-import { kemasanKeDasar, keSatuanDasar } from './konversi';
+import { kemasanKeDasar, keSatuanDasar, satuanKemasanUntuk } from './konversi';
+
+describe('satuanKemasanUntuk', () => {
+  it('satuan kemasan yang cocok dengan satuan dasar', () => {
+    expect(satuanKemasanUntuk('g')).toEqual(['kg', 'g']);
+    expect(satuanKemasanUntuk('ml')).toEqual(['l', 'ml']);
+    expect(satuanKemasanUntuk('pcs')).toEqual(['pcs', 'lusin']);
+  });
+});
 
 describe('keSatuanDasar', () => {
   it('3 sdm × 12 g = 36 g', () => {

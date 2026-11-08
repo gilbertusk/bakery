@@ -2,12 +2,15 @@ import { describe, expect, it } from 'vitest';
 
 import {
   formatAngka,
+  formatHargaSatuan,
+  formatRibuan,
   formatRupiah,
   formatRupiahDesimal,
   formatTakaran,
   formatTanggal,
   formatWaktu,
   hariIniWib,
+  parseKetikanRupiah,
   parseRupiah,
   rentangHariWib,
   tanggalWib,
@@ -59,6 +62,43 @@ describe('formatTakaran', () => {
   it('menggabungkan angka dan satuan', () => {
     expect(formatTakaran('36', 'g')).toBe('36 g');
     expect(formatTakaran('1200.500', 'ml')).toBe('1.200,5 ml');
+  });
+});
+
+describe('formatHargaSatuan', () => {
+  it.each([
+    ['13.5000', 'g', 'Rp13,5/g'],
+    ['15', 'g', 'Rp15/g'],
+    ['0', 'ml', 'Rp0/ml'],
+    ['0.01254', 'g', 'Rp0,0125/g'],
+    ['2500', 'pcs', 'Rp2.500/pcs'],
+  ])('(%s, %s) → %s', (nilai, satuan, hasil) => {
+    expect(formatHargaSatuan(nilai, satuan)).toBe(hasil);
+  });
+});
+
+describe('formatRibuan & parseKetikanRupiah (InputRupiah)', () => {
+  it('formatRibuan memberi titik ribuan, kosong untuk null', () => {
+    expect(formatRibuan(15000)).toBe('15.000');
+    expect(formatRibuan(0)).toBe('0');
+    expect(formatRibuan(1250000)).toBe('1.250.000');
+    expect(formatRibuan(null)).toBe('');
+  });
+
+  it.each([
+    ['15.000', 15000],
+    ['Rp 1.250.000', 1250000],
+    ['15000x', 15000],
+    ['007', 7],
+    ['0', 0],
+  ])('parseKetikanRupiah(%j) = %d', (teks, hasil) => {
+    expect(parseKetikanRupiah(teks)).toBe(hasil);
+  });
+
+  it('tanpa digit = null, angka di luar batas aman dipotong ke digit awal', () => {
+    expect(parseKetikanRupiah('')).toBeNull();
+    expect(parseKetikanRupiah('Rp')).toBeNull();
+    expect(parseKetikanRupiah('99999999999999999999')).toBe(999_999_999_999_999);
   });
 });
 
