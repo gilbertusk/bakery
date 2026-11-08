@@ -208,6 +208,11 @@ Pakai fungsi ini, jangan membuat ulang. `Tx` = transaksi Drizzle (`db.transactio
 - `KONVERSI_UMUM` (`@/lib/hpp/konversi-umum`): saran konversi sdm/cup
 - Fixture test Brownies: `src/lib/hpp/__fixtures__/brownies.ts`
 
+**`@/lib/telepon`**
+
+- `normalisasiKontak(input: string): { ok: true; nilai: string | null } | { ok: false; error }`: nomor HP `08…`/`+62 8…` → `628…`; kontak lain disimpan apa adanya; kosong → null
+- `nomorWhatsApp(kontak): string | null`, `linkWhatsApp(kontak): string | null` (`https://wa.me/628…`)
+
 **Lainnya**
 
 - `@/lib/log`: `log.info | log.warn | log.error(pesan: string, konteks?: { error?, ...lainnya })`, JSON satu baris. Pengganti `console.log`.
