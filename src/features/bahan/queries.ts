@@ -6,6 +6,7 @@ import { type Db, type Tx, db } from '@/db/client';
 import {
   type SatuanDasar,
   bahan,
+  konversiSatuan,
   pengguna,
   produkKomponen,
   resepAdonanItem,
@@ -175,4 +176,22 @@ export async function riwayatHargaBahan(id: string): Promise<BarisRiwayatHarga[]
     .innerJoin(pengguna, eq(pengguna.id, riwayatHarga.dibuatOleh))
     .where(eq(riwayatHarga.bahanId, id))
     .orderBy(desc(riwayatHarga.berlakuSejak), desc(riwayatHarga.id));
+}
+
+export type BarisKonversiBahan = {
+  id: string;
+  namaSatuan: string;
+  nilaiDasar: string;
+};
+
+export async function daftarKonversiBahan(id: string): Promise<BarisKonversiBahan[]> {
+  return db
+    .select({
+      id: konversiSatuan.id,
+      namaSatuan: konversiSatuan.namaSatuan,
+      nilaiDasar: konversiSatuan.nilaiDasar,
+    })
+    .from(konversiSatuan)
+    .where(eq(konversiSatuan.bahanId, id))
+    .orderBy(asc(sql`lower(${konversiSatuan.namaSatuan})`), asc(konversiSatuan.id));
 }

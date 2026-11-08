@@ -1,7 +1,7 @@
 import { asc, eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { bahan, konversiSatuan, produkKomponen, resepAdonan, resepAdonanItem } from '@/db/schema';
+import { konversiSatuan, produkKomponen, resepAdonan, resepAdonanItem } from '@/db/schema';
 import { hapusKonversi, tambahKonversi, ubahKonversi } from '@/features/bahan/konversi-actions';
 import { daftarKonversiBahan } from '@/features/bahan/queries';
 import { getPengguna } from '@/lib/auth/pengguna';

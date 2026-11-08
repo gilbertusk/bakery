@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, History, PackageSearch, Scale } from 'lucide-react';
+import { ArrowLeft, ArrowRight, History, PackageSearch } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -16,12 +16,15 @@ import { TombolAktifBahan } from '@/features/bahan/components/aksi-bahan';
 import { BadgeNonaktif, BadgeStok } from '@/features/bahan/components/badge-stok';
 import { DialogUbahHarga } from '@/features/bahan/components/dialog-ubah-harga';
 import { FormBahan, type PilihanSupplier } from '@/features/bahan/components/form-bahan';
+import { TabKonversi } from '@/features/bahan/components/tab-konversi';
 import {
   type BarisRiwayatHarga,
   type DetailBahan,
+  daftarKonversiBahan,
   detailBahan,
   riwayatHargaBahan,
 } from '@/features/bahan/queries';
+import { saranKonversiUntuk } from '@/features/bahan/saran-konversi';
 import { pilihanSupplier } from '@/features/supplier/queries';
 import { requirePeran } from '@/lib/auth';
 import { formatHargaSatuan, formatTakaran, formatWaktu } from '@/lib/format';
@@ -101,10 +104,11 @@ async function IsiDetail({ params }: Pick<PageProps<'/bahan/[id]'>, 'params'>) {
   const [, { id }] = await Promise.all([requirePeran(...peranUntuk('/bahan')), params]);
   if (!z.uuid().safeParse(id).success) notFound();
 
-  const [bahan, riwayat, suppliers] = await Promise.all([
+  const [bahan, riwayat, suppliers, konversi] = await Promise.all([
     detailBahan(id),
     riwayatHargaBahan(id),
     pilihanSupplier(),
+    daftarKonversiBahan(id),
   ]);
   if (!bahan) notFound();
 
@@ -160,10 +164,10 @@ async function IsiDetail({ params }: Pick<PageProps<'/bahan/[id]'>, 'params'>) {
         </TabsContent>
 
         <TabsContent value="konversi" className="pt-2">
-          <EmptyState
-            ikon={Scale}
-            judul="Konversi takaran segera hadir"
-            deskripsi="Atur takaran seperti sendok atau butir untuk bahan ini."
+          <TabKonversi
+            bahan={{ id: bahan.id, satuanDasar: bahan.satuanDasar }}
+            konversi={konversi}
+            saran={saranKonversiUntuk(bahan)}
           />
         </TabsContent>
 

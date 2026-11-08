@@ -230,6 +230,13 @@ Pakai fungsi ini, jangan membuat ulang. `Tx` = transaksi Drizzle (`db.transactio
 
 - `@/components/input-rupiah`: `InputRupiah`, input integer rupiah terformat dengan nilai `number | null`.
 
+**Helper fitur**
+
+- `@/features/resep/hitung-ulang`:
+  - `hitungUlangTakaranDasarKonversi(tx, konversiId): Promise<string[]>`: perbarui salinan `takaran_dasar` item resep dan komponen produk, lalu kembalikan resep terdampak.
+  - `hitungUlangHasilResep(tx, resepId)`: mode otomatis memakai `hasilOtomatis`; mode timbang tidak diubah. Pakai dalam transaksi yang sama dengan perubahan item/konversi.
+- `@/features/bahan/saran-konversi`: `saranKonversiUntuk({ nama, kategori, satuanDasar })`, menyaring `KONVERSI_UMUM`; hasil adalah perkiraan yang perlu dicek dengan timbangan.
+
 **Lainnya**
 
 - `@/lib/log`: `log.info | log.warn | log.error(pesan: string, konteks?: { error?, ...lainnya })`, JSON satu baris. Pengganti `console.log`.
