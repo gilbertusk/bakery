@@ -232,6 +232,11 @@ Pakai fungsi ini, jangan membuat ulang. `Tx` = transaksi Drizzle (`db.transactio
 
 **Helper fitur**
 
+- `@/features/resep/queries`:
+  - `ambilBiayaResep(db | tx, resepIds): Promise<Map<resepId, { biayaTotal; biayaPerGram; hasilGram }>>`: satu query untuk seluruh item dan harga bahan; nilai biaya berupa `Decimal`.
+  - `daftarResep`, `detailResep`, dan `pilihanBahan`: DTO tampilan resep; biaya diubah menjadi string sebelum melewati batas server/client.
+- `@/features/resep/hitung-form`:
+  - `hitungRingkasanForm(input)`: pratinjau form yang toleran terhadap baris belum lengkap; memakai fungsi murni `@/lib/hpp` dan tetap mengembalikan `Decimal`.
 - `@/features/resep/hitung-ulang`:
   - `hitungUlangTakaranDasarKonversi(tx, konversiId): Promise<string[]>`: perbarui salinan `takaran_dasar` item resep dan komponen produk, lalu kembalikan resep terdampak.
   - `hitungUlangHasilResep(tx, resepId)`: mode otomatis memakai `hasilOtomatis`; mode timbang tidak diubah. Pakai dalam transaksi yang sama dengan perubahan item/konversi.

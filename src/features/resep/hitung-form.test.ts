@@ -26,7 +26,7 @@ describe('hitungRingkasanForm', () => {
     });
 
     expect(
-      hasil.items.map((item) => [item.takaranDasar.toString(), item.biaya.toString()]),
+      hasil.items.map((item) => [item!.takaranDasar.toString(), item!.biaya.toString()]),
     ).toEqual([
       ['36', '648'],
       ['100', '2000'],
