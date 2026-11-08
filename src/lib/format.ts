@@ -38,6 +38,27 @@ export function formatTakaran(nilai: NilaiAngka, satuan: string): string {
   return `${formatAngka(nilai)} ${satuan}`;
 }
 
+/** Pembulatan khusus tampilan kalkulator skala; tidak dipakai untuk nilai yang disimpan. */
+export function formatTakaranSkala(
+  nilai: NilaiAngka,
+  satuan: string,
+): { teks: string; catatan: string | null } {
+  const satuanKecil = satuan.trim().toLowerCase();
+  if (satuanKecil === 'butir') {
+    const dibulatkan = D(nilai).div('0.5').round().times('0.5');
+    return {
+      teks: `${formatAngka(dibulatkan, 1)} ${satuan}`,
+      catatan: 'Takaran butir dibulatkan ke 0,5 terdekat',
+    };
+  }
+
+  const maksDesimal = satuanKecil === 'g' ? 1 : 2;
+  return {
+    teks: `${formatAngka(D(nilai).toDecimalPlaces(maksDesimal), maksDesimal)} ${satuan}`,
+    catatan: null,
+  };
+}
+
 /** ("13.5000", "g") → "Rp13,5/g". Harga bahan per satuan dasar, maks 4 desimal. */
 export function formatHargaSatuan(nilai: NilaiAngka, satuan: string): string {
   return `Rp${formatAngka(nilai, 4)}/${satuan}`;

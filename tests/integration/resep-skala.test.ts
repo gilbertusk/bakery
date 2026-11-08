@@ -128,9 +128,14 @@ describe('duplikatResep', () => {
       .orderBy(asc(resepAdonanItem.resepAdonanId), asc(resepAdonanItem.urutan));
     const itemInduk = items.filter((item) => item.resepId === induk.id);
     const itemSalinan = items.filter((item) => item.resepId === hasil.data.id);
-    expect(itemSalinan.map(({ id: _id, resepId: _resepId, ...item }) => item)).toEqual(
-      itemInduk.map(({ id: _id, resepId: _resepId, ...item }) => item),
-    );
+    const isiItem = (item: (typeof items)[number]) => ({
+      bahanId: item.bahanId,
+      takaran: item.takaran,
+      konversiId: item.konversiId,
+      takaranDasar: item.takaranDasar,
+      urutan: item.urutan,
+    });
+    expect(itemSalinan.map(isiItem)).toEqual(itemInduk.map(isiItem));
     expect(itemSalinan.map((item) => item.id)).not.toEqual(itemInduk.map((item) => item.id));
 
     await testDb

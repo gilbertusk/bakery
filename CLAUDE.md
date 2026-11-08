@@ -143,6 +143,7 @@ Pakai fungsi ini, jangan membuat ulang. `Tx` = transaksi Drizzle (`db.transactio
 - `formatRupiahDesimal(nilai: NilaiAngka, desimal = 2): string`: `"Rp13,50"`
 - `formatAngka(nilai: NilaiAngka, maksDesimal = 4): string`: `"1.200,5"`
 - `formatTakaran(nilai: NilaiAngka, satuan: string): string`: `"36 g"`
+- `formatTakaranSkala(nilai, satuan): { teks; catatan }`: gram 1 desimal, butir ke 0,5 terdekat dengan catatan, satuan lain maks 2 desimal; hanya untuk tampilan
 - `formatHargaSatuan(nilai: NilaiAngka, satuan: string): string`: `"Rp13,5/g"`
 - `formatRibuan(nilai: number | null): string` dan `parseKetikanRupiah(teks: string): number | null`: untuk `InputRupiah`
 - `parseRupiah(input: string): number | null`: null bila tidak valid
@@ -240,6 +241,9 @@ Pakai fungsi ini, jangan membuat ulang. `Tx` = transaksi Drizzle (`db.transactio
 - `@/features/resep/hitung-ulang`:
   - `hitungUlangTakaranDasarKonversi(tx, konversiId): Promise<string[]>`: perbarui salinan `takaran_dasar` item resep dan komponen produk, lalu kembalikan resep terdampak.
   - `hitungUlangHasilResep(tx, resepId)`: mode otomatis memakai `hasilOtomatis`; mode timbang tidak diubah. Pakai dalam transaksi yang sama dengan perubahan item/konversi.
+- `@/features/resep/actions`:
+  - `duplikatResep({ resepId, namaBaru })`: salin resep dan seluruh item dalam transaksi; `induk_resep_id` menunjuk resep yang diduplikat.
+  - `simpanLoyangResep({ resepId, loyang })`: simpan loyang acuan dari kalkulator skala; khusus pemilik.
 - `@/features/bahan/saran-konversi`: `saranKonversiUntuk({ nama, kategori, satuanDasar })`, menyaring `KONVERSI_UMUM`; hasil adalah perkiraan yang perlu dicek dengan timbangan.
 
 **Lainnya**

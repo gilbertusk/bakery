@@ -1,4 +1,4 @@
-import { ArrowLeft, Copy, Pencil, Scale } from 'lucide-react';
+import { ArrowLeft, Pencil, Scale } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -20,6 +20,8 @@ import {
 } from '@/components/ui/table';
 import { peranUntuk } from '@/config/navigasi';
 import { TombolAktifResep } from '@/features/resep/components/aksi-resep';
+import { DialogDuplikatResep } from '@/features/resep/components/dialog-duplikat-resep';
+import { KalkulatorSkala } from '@/features/resep/components/kalkulator-skala';
 import { detailResep, type DetailResep } from '@/features/resep/queries';
 import { requirePeran } from '@/lib/auth';
 import { formatAngka, formatRupiah, formatRupiahDesimal } from '@/lib/format';
@@ -109,6 +111,49 @@ function BahanResep({ resep }: { resep: DetailResep }) {
   );
 }
 
+function VarianResep({ resep }: { resep: DetailResep }) {
+  if (!resep.indukResep && resep.varian.length === 0) return null;
+  return (
+    <section className="flex flex-col gap-2 rounded-xl border p-4 sm:p-6">
+      {resep.indukResep ? (
+        <p className="text-sm">
+          <span className="text-muted-foreground">Varian dari: </span>
+          <Link
+            href={`/resep/${resep.indukResep.id}`}
+            className="font-medium underline underline-offset-4"
+          >
+            {resep.indukResep.nama}
+          </Link>
+          {resep.indukResep.aktif ? null : (
+            <Badge variant="secondary" className="ml-2">
+              Nonaktif
+            </Badge>
+          )}
+        </p>
+      ) : null}
+      {resep.varian.length > 0 ? (
+        <div className="flex flex-col gap-2">
+          <h2 className="font-medium">Varian resep</h2>
+          <div className="flex flex-wrap gap-2">
+            {resep.varian.map((varian) => (
+              <Button
+                key={varian.id}
+                variant="outline"
+                size="sm"
+                nativeButton={false}
+                render={<Link href={`/resep/${varian.id}`} />}
+              >
+                {varian.nama}
+                {varian.aktif ? null : <Badge variant="secondary">Nonaktif</Badge>}
+              </Button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 async function IsiDetailResep({ params }: Pick<PageProps<'/resep/[id]'>, 'params'>) {
   const [, { id }] = await Promise.all([requirePeran(...peranUntuk('/resep')), params]);
   if (!z.uuid().safeParse(id).success) notFound();
@@ -129,16 +174,13 @@ async function IsiDetailResep({ params }: Pick<PageProps<'/resep/[id]'>, 'params
             >
               <Pencil /> Ubah
             </Button>
-            <Button variant="outline" className="h-11" disabled>
-              <Copy /> Duplikat
-            </Button>
-            <Button variant="outline" className="h-11" disabled>
-              <Scale /> Skala
-            </Button>
+            <DialogDuplikatResep resep={{ id: resep.id, nama: resep.nama }} />
+            <KalkulatorSkala resep={resep} />
           </>
         }
       />
       <Ringkasan resep={resep} />
+      <VarianResep resep={resep} />
       <BahanResep resep={resep} />
       {resep.caraBuat ? (
         <section className="flex flex-col gap-2 rounded-xl border p-4 sm:p-6">

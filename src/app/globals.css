@@ -128,3 +128,34 @@
     @apply font-sans;
   }
 }
+
+@media print {
+  body:has([data-cetak-skala][data-open]) * {
+    visibility: hidden !important;
+  }
+
+  body:has([data-cetak-skala][data-open]) [data-cetak-skala],
+  body:has([data-cetak-skala][data-open]) [data-cetak-skala] * {
+    visibility: visible !important;
+  }
+
+  body:has([data-cetak-skala][data-open]) [data-cetak-skala] {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    max-height: none !important;
+    transform: none !important;
+    overflow: visible !important;
+    color: black;
+    background: white;
+  }
+
+  body:has([data-cetak-skala][data-open]) [data-cetak-skala] > button {
+    display: none !important;
+  }
+
+  body:has([data-cetak-skala][data-open]) [data-tidak-cetak] {
+    display: none !important;
+  }
+}

@@ -16,7 +16,13 @@ import { D, keNumeric } from '@/lib/angka';
 import { PesanError, aksi } from '@/lib/aksi';
 import { hasilOtomatis, keSatuanDasar } from '@/lib/hpp';
 
-import { setAktifResepSchema, simpanResepSchema, type SimpanResepData } from './schemas';
+import {
+  duplikatResepSchema,
+  setAktifResepSchema,
+  simpanLoyangResepSchema,
+  simpanResepSchema,
+  type SimpanResepData,
+} from './schemas';
 
 const PEMILIK = ['pemilik' as const];
 const PESAN_TIDAK_ADA = 'Resep tidak ditemukan';
@@ -29,7 +35,7 @@ function segarkan(id: string) {
   revalidatePath('/produk');
 }
 
-async function pastikanNamaUnik(tx: Tx, nama: string, kecualiId?: string | null) {
+async function pastikanNamaUnik(tx: Tx, nama: string, kecualiId?: string | null, field = 'nama') {
   const [lain] = await tx
     .select({ id: resepAdonan.id })
     .from(resepAdonan)
@@ -40,7 +46,7 @@ async function pastikanNamaUnik(tx: Tx, nama: string, kecualiId?: string | null)
       ),
     )
     .limit(1);
-  if (lain) throw new PesanError(PESAN_DUPLIKAT, { field: 'nama' });
+  if (lain) throw new PesanError(PESAN_DUPLIKAT, { field });
 }
 
 async function hitungItems(tx: Tx, data: SimpanResepData) {
@@ -211,5 +217,78 @@ export const setAktifResep = aksi({
     });
     segarkan(id);
     return { id };
+  },
+});
+
+export const duplikatResep = aksi({
+  schema: duplikatResepSchema,
+  peran: PEMILIK,
+  jalankan: async ({ resepId, namaBaru }) => {
+    const hasil = await db.transaction(async (tx) => {
+      const [induk] = await tx
+        .select()
+        .from(resepAdonan)
+        .where(eq(resepAdonan.id, resepId))
+        .for('update');
+      if (!induk) throw new PesanError(PESAN_TIDAK_ADA);
+      await pastikanNamaUnik(tx, namaBaru, null, 'namaBaru');
+
+      const items = await tx
+        .select({
+          bahanId: resepAdonanItem.bahanId,
+          takaran: resepAdonanItem.takaran,
+          konversiSatuanId: resepAdonanItem.konversiSatuanId,
+          takaranDasar: resepAdonanItem.takaranDasar,
+          urutan: resepAdonanItem.urutan,
+        })
+        .from(resepAdonanItem)
+        .where(eq(resepAdonanItem.resepAdonanId, resepId))
+        .orderBy(asc(resepAdonanItem.urutan));
+      if (items.length === 0) throw new PesanError('Resep belum memiliki bahan');
+
+      const [salinan] = await tx
+        .insert(resepAdonan)
+        .values({
+          nama: namaBaru,
+          modeHasil: induk.modeHasil,
+          hasilGram: induk.hasilGram,
+          caraBuat: induk.caraBuat,
+          bentukLoyang: induk.bentukLoyang,
+          diameterCm: induk.diameterCm,
+          panjangCm: induk.panjangCm,
+          lebarCm: induk.lebarCm,
+          indukResepId: resepId,
+          aktif: induk.aktif,
+        })
+        .returning({ id: resepAdonan.id });
+      if (!salinan) throw new Error('Gagal menduplikat resep');
+
+      await tx.insert(resepAdonanItem).values(
+        items.map((item) => ({
+          ...item,
+          resepAdonanId: salinan.id,
+        })),
+      );
+      return salinan;
+    });
+
+    segarkan(resepId);
+    segarkan(hasil.id);
+    return hasil;
+  },
+});
+
+export const simpanLoyangResep = aksi({
+  schema: simpanLoyangResepSchema,
+  peran: PEMILIK,
+  jalankan: async ({ resepId, loyang }) => {
+    const [baris] = await db
+      .update(resepAdonan)
+      .set(kolomLoyang(loyang))
+      .where(eq(resepAdonan.id, resepId))
+      .returning({ id: resepAdonan.id });
+    if (!baris) throw new PesanError(PESAN_TIDAK_ADA);
+    segarkan(resepId);
+    return baris;
   },
 });

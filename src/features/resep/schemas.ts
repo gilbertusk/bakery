@@ -66,6 +66,14 @@ export const resepSchema = z
 
 export const simpanResepSchema = resepSchema.and(z.object({ id: idOpsional }));
 export const setAktifResepSchema = z.object({ id: z.uuid(), aktif: z.boolean() });
+export const duplikatResepSchema = z.object({
+  resepId: z.uuid(),
+  namaBaru: z.string().trim().min(2).max(100),
+});
+export const simpanLoyangResepSchema = z.object({
+  resepId: z.uuid(),
+  loyang: z.discriminatedUnion('bentuk', [loyangBulatSchema, loyangKotakSchema]),
+});
 
 export type ResepInput = z.input<typeof resepSchema>;
 export type ResepData = z.output<typeof resepSchema>;

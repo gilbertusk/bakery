@@ -197,13 +197,15 @@ export type DetailResep = {
     konversi: PilihanBahanResep['konversi'];
   }>;
   produk: { id: string; nama: string; aktif: boolean }[];
+  indukResep: { id: string; nama: string; aktif: boolean } | null;
+  varian: { id: string; nama: string; aktif: boolean }[];
 };
 
 export async function detailResep(id: string): Promise<DetailResep | null> {
   const [resep] = await db.select().from(resepAdonan).where(eq(resepAdonan.id, id));
   if (!resep) return null;
 
-  const [items, produkPemakai] = await Promise.all([
+  const [items, produkPemakai, indukResep, varian] = await Promise.all([
     db
       .select({
         id: resepAdonanItem.id,
@@ -229,6 +231,18 @@ export async function detailResep(id: string): Promise<DetailResep | null> {
       .innerJoin(produk, eq(produk.id, produkKomponen.produkId))
       .where(eq(produkKomponen.resepAdonanId, id))
       .orderBy(asc(produk.nama)),
+    resep.indukResepId
+      ? db
+          .select({ id: resepAdonan.id, nama: resepAdonan.nama, aktif: resepAdonan.aktif })
+          .from(resepAdonan)
+          .where(eq(resepAdonan.id, resep.indukResepId))
+          .limit(1)
+      : Promise.resolve([]),
+    db
+      .select({ id: resepAdonan.id, nama: resepAdonan.nama, aktif: resepAdonan.aktif })
+      .from(resepAdonan)
+      .where(eq(resepAdonan.indukResepId, id))
+      .orderBy(asc(sql`lower(${resepAdonan.nama})`), asc(resepAdonan.id)),
   ]);
 
   const pilihanItem = await bahanDenganKonversi(false, [
@@ -247,5 +261,7 @@ export async function detailResep(id: string): Promise<DetailResep | null> {
       konversi: pilihanById.get(item.bahanId)?.konversi ?? [],
     })),
     produk: produkPemakai,
+    indukResep: indukResep[0] ?? null,
+    varian,
   };
 }
