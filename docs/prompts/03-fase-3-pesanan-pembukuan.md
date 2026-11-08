@@ -28,12 +28,13 @@ TUGAS
    - diantar boolean; alamat wajib jika diantar
    - catatan opsional
    - diskon (rp)
-   - items min 1: { produkId, qty 1–999, hargaSatuan (default harga_jual, boleh diubah untuk pesanan custom), catatanKue (tulisan di kue, warna, ≤ 300) }
+   - items min 1: { produkId, qty 1–999, hargaSatuan (default harga_jual, boleh diubah untuk pesanan custom), catatanKue (tulisan di kue, warna, ≤ 300), addOns: [{ addOnId, harga? }] (F-ADD-05: aturan sama dengan kasir, unik per item, harga_normal dari DB) }
 
 3. actions.ts:
    - buatPO:
      - ambilNomor 'PO'
-     - hitung subtotal item & total = Σ − diskon di SERVER
+     - hitung subtotal item (qty × (harga + Σ add-on), pakai hitungItemDenganAddOn) & total = Σ − diskon di SERVER
+     - simpan pre_order_item_add_on
      - status dipesan, status_bayar belum, dibayar 0
    - ubahPO:
      - item & total hanya bisa diubah selama status dipesan/diproduksi
@@ -56,7 +57,7 @@ TUGAS
      - kartu: nama, tanggal & jam ambil (badge "Hari ini"/"Besok"), item ringkas, total, sisa bayar, status
    - /pre-order/baru:
      - form pemesan
-     - item (pilih produk → harga terisi, bisa diubah; catatan kue per item)
+     - item (pilih produk → harga terisi, bisa diubah; catatan kue per item; "+ Add-on" seperti di kasir)
      - ringkasan total
      - Simpan → arahkan ke detail
    - /pre-order/[id]:
@@ -70,6 +71,7 @@ TUGAS
 6. Test:
    - unit transisiValid lengkap
    - integrasi buat/ubah PO, total dihitung server, ubah item setelah siap ditolak, transisi tidak valid ditolak
+   - PO dengan add-on: total termasuk add-on, add-on duplikat ditolak
 
 SELESAI JIKA
 Pesanan "Brownies Loyang tulisan 'Selamat Ulang Tahun Dinda'" bisa dicatat dari HP dan statusnya dimajukan sampai "siap".
@@ -141,7 +143,7 @@ TUGAS
    - kunci PO; status harus 'siap' DAN status_bayar 'lunas'
      (pesan jelas untuk masing-masing kasus: "Pesanan belum siap" / "Masih ada sisa pembayaran Rp…")
    - buatPenjualan dengan:
-     - items dari pre_order_item (hargaSatuan dari PO, opsi.hargaDariInput true)
+     - items dari pre_order_item (hargaSatuan dari PO, opsi.hargaDariInput true), addOns dari pre_order_item_add_on (harga dari PO; HPP add-on dihitung saat diambil; add-on yang kini nonaktif tetap diterima untuk PO)
      - diskonNota = diskon PO (rupiah)
      - metodeBayar = metode pembayaran terakhir PO
      - dibayar = total
@@ -157,6 +159,7 @@ TUGAS
    - di detail penjualan yang berasal dari PO tampilkan tautan "Dari pre-order PO-…"
 3. Test integrasi:
    - PO lunas & siap → penjualan dibuat dengan pre_order_id, stok berkurang, TIDAK ada kas baru
+   - PO dengan add-on → penjualan_item_add_on tersalin, stok bahan add-on berkurang, total penjualan = total PO
    - laporan omzet (ringkasanPenjualan) memasukkan penjualan ini
    - total kas PO = total PO (tidak ganda)
    - PO belum lunas → ditolak
@@ -213,7 +216,7 @@ TUGAS
    - PO berstatus dipesan/diproduksi dengan tanggal ambil di rentang
    - agregasi qty per produk
    - kebutuhan adonan per resep: total gram + saran skala (gram ÷ hasil_gram, dibulatkan ke 0,5 ke atas)
-   - kebutuhan bahan (semua adonan proporsional + bahan langsung)
+   - kebutuhan bahan (semua adonan proporsional + bahan langsung + bahan add-on via kebutuhanBahanAddOn)
    - bandingkan dengan stok produk jadi saat ini (opsional dikurangi) dan stok bahan
 2. /pre-order/rekap?dari=&sampai= (default besok):
    - Bagian 1: Produk yang harus dibuat (qty pesanan, stok jadi, kurang)
@@ -223,7 +226,7 @@ TUGAS
    - Tombol "Salin daftar belanja" (teks bahan yang kurang) dan "Cetak"
    - Tombol per resep "Buat draft produksi" → /produksi/baru terisi resep, skala, dan produk
 3. Kasir boleh melihat (tanpa nilai rupiah).
-4. Test integrasi dengan 3 PO di tanggal sama yang memakai resep yang sama dan berbeda.
+4. Test integrasi dengan 3 PO di tanggal sama yang memakai resep yang sama dan berbeda, salah satunya dengan add-on.
 
 SELESAI JIKA
 Sehari sebelum pesanan, Khansa tahu persis bahan apa yang kurang dan berapa kali resep harus dibuat.
@@ -360,7 +363,7 @@ TUGAS
    a. labaRugi({ mulai, selesai }):
       - omzet = Σ penjualan.total (selesai)
       - diskon
-      - hppPenjualan = Σ hpp_satuan × qty
+      - hppPenjualan = Σ (hpp_satuan + Σ hpp_satuan add-on) × qty
       - labaKotor
       - pendapatanLain:
         - kas masuk kelompok pendapatan_lain
@@ -410,7 +413,7 @@ TUGAS
    Sheet:
    - Laba Rugi
    - Penjualan (per nota: no, waktu WIB, metode, subtotal, diskon, total, status)
-   - Item Penjualan (no, produk, qty, harga, diskon, subtotal, HPP, laba)
+   - Item Penjualan (no, produk, add-on, qty, harga, diskon, subtotal, HPP, laba)
    - Produk (ringkasan per produk)
    - Kas (semua baris + kategori + akun + sumber)
    - Pembelian

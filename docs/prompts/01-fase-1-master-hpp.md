@@ -2,7 +2,7 @@
 
 Tujuan fase: Khansa bisa memasukkan bahan, resep, dan produk, lalu melihat HPP, margin, dan saran harga yang akurat.
 
-Urutan: 1.1a → 1.1b → 1.4 → 1.2 → 1.3 → 1.5 → 1.6 → 1.7 → 1.8 → 1.9 → 1.10 → 1.11 → 🚦 Gerbang 1
+Urutan: 1.1a → 1.1b → 1.4 → 1.2 → 1.3 → 1.5 → 1.6 → 1.7 → 1.8 → 1.9 → 1.9b → 1.10 → 1.11 → 🚦 Gerbang 1
 
 (1.4 Supplier dikerjakan sebelum 1.2 karena form bahan memakai pilihan supplier.)
 
@@ -565,6 +565,60 @@ TUGAS
 
 SELESAI JIKA
 Overhead tampil di rincian HPP produk (1.8) sesuai metode.
+~~~
+
+---
+
+## 1.9b — Master add-on 🧭🧪
+
+Est. 1 hari
+
+~~~text
+Lanjutkan proyek Toko Kue. Baca CLAUDE.md, docs/PRD.md §6.4a (F-ADD-01) dan §7.12, docs/ERD.md (add_on, penjualan_item_add_on, pre_order_item_add_on).
+Ini langkah 1.9b: master add-on, yaitu tambahan yang HANYA dihitung jika pembeli memilihnya di kasir/PO. Hanya pemilik.
+Aturan (K9): berlaku untuk semua produk; tepat 1 bahan per add-on; maks. 1× per item; harga boleh diubah kasir (harga normal dicatat).
+
+TUGAS
+1. Skema (pakai prompt U4 untuk menilai dampak dulu, lalu migrasi baru — jangan edit migrasi lama):
+   - add_on: nama (unik case-insensitive), bahan_id FK RESTRICT, takaran > 0, konversi_satuan_id null, takaran_dasar > 0, harga integer ≥ 0, aktif, timestamps
+   - penjualan_item_add_on: penjualan_item_id FK CASCADE, add_on_id FK RESTRICT, nama_add_on, harga_normal ≥ 0, harga ≥ 0, hpp_satuan numeric(14,2); UNIQUE(penjualan_item_id, add_on_id)
+   - pre_order_item_add_on: pre_order_item_id FK CASCADE, add_on_id FK RESTRICT, harga_normal ≥ 0, harga ≥ 0; UNIQUE(pre_order_item_id, add_on_id)
+   - RLS aktif tanpa policy untuk ketiga tabel; tambahkan ke tests/integration/rls.test.ts
+   - test integrasi skema: CHECK & UNIQUE ditolak sesuai aturan
+
+2. src/lib/hpp/add-on.ts (TDD: RED commit dulu, coverage 100%, Decimal D(), HitungError berbahasa Indonesia):
+   - hppAddOn({ takaranDasar, hargaPerSatuan }): Decimal — per pcs, tanpa overhead
+   - hitungItemDenganAddOn({ qty, hargaSatuan, addOns: [{ addOnId, harga, hargaNormal, hppSatuan }], diskon: { jenis: 'rp'|'persen', nilai } }):
+     { hargaPerPcs, subtotalSebelumDiskon, diskonRp, subtotal, hppAddOnPerPcs, selisihHarga }
+     - addOnId duplikat → HitungError "Add-on yang sama hanya boleh dipilih sekali per item"
+     - harga add-on < 0 atau bukan bulat → HitungError
+     - diskon persen dibulatkan KE BAWAH, berlaku untuk seluruh baris termasuk add-on; diskon > subtotal → HitungError
+   - kebutuhanBahanAddOn(items: [{ qty, addOns: [{ bahanId, takaranDasar }] }]): Map bahanId → total takaran (dipakai stok kasir & rekap PO)
+   - Ekspor dari src/lib/hpp/index.ts; perbarui bagian "Utilitas inti" CLAUDE.md
+   - Kasus uji: brownies 2 pcs + extra keju (Rp3.000, normal Rp3.000) + extra coklat (diubah Rp1.500 dari Rp2.000) dengan diskon 10% → angka dihitung manual di test
+
+3. src/features/add-on/: schemas.ts, actions.ts (buat, ubah, nonaktifkan/aktifkan; hapus hanya jika belum pernah dipakai, selain itu pesan "Add-on sudah dipakai di transaksi; nonaktifkan saja"), queries.ts:
+   - daftarAddOnPemilik(): nama, bahan, takaran (satuan input), harga, HPP, margin Rp & %, aktif
+   - addOnKasir(): DTO { id, nama, harga } — HANYA aktif, TANPA hpp/bahan/takaran (dipakai di 2.6)
+   - takaran_dasar dihitung di server dari konversi (pakai lib/hpp konversi)
+   - catatAudit untuk perubahan harga add-on
+
+4. Halaman /produk/add-on (tautan dari /produk):
+   - daftar kartu: nama, "Keju cheddar 20 g", harga, HPP, margin (badge di bawah target margin default), aktif
+   - form: nama, pilih bahan (combobox), takaran + pilihan satuan (satuan dasar atau konversi bahan), harga jual
+   - pratinjau live HPP & margin saat mengetik (hitung di client dari harga bahan yang dikirim ke form PEMILIK)
+   - teks bantuan: "Add-on hanya dihitung jika pembeli memintanya. Untuk topping yang selalu ada, pakai komponen produk."
+
+5. Seed contoh (src/db/seed/contoh.ts): 2 add-on (Extra keju, Extra coklat) — idempoten.
+
+6. Test integrasi:
+   - CRUD + validasi nama unik
+   - add-on terpakai tidak bisa dihapus
+   - addOnKasir tidak memuat kunci hpp/harga_per_satuan/bahan/takaran
+   - kasir ditolak di semua action add-on
+
+SELESAI JIKA
+Pemilik bisa membuat "Extra keju 20 g Rp3.000" dan melihat HPP serta marginnya. Fungsi hitung add-on siap dipakai kasir (2.6a). Coverage src/lib/hpp tetap 100%.
 ~~~
 
 ---

@@ -139,6 +139,7 @@ Kode di kurung merujuk ke ID kebutuhan di [PRD §6](PRD.md#6-kebutuhan-fungsiona
 | 1.7 | Produk: form + upload foto + komponen (adonan/bahan + peran) | F-PRD-01, 02 | 1,5 h |
 | 1.8 | Halaman detail produk: rincian HPP, margin, saran harga, pcs per resep | F-PRD-03–05 | 1 h |
 | 1.9 | Biaya tambahan/overhead | F-PRD-06 | 0,5 h |
+| 1.9b | Master add-on: skema `add_on` + item add-on, `lib/hpp/add-on.ts` (TDD), CRUD + HPP & margin add-on | F-ADD-01 | 1 h |
 | 1.10 | Simulasi kenaikan harga bahan | F-PRD-07 | 0,5 h |
 | 1.11 | Impor data awal dari template Excel (bahan, konversi, resep, produk) | — | 1 h |
 
@@ -156,9 +157,9 @@ Kode di kurung merujuk ke ID kebutuhan di [PRD §6](PRD.md#6-kebutuhan-fungsiona
 | 2.3 | Kartu stok per bahan & per produk | F-STK-02 | 1 h |
 | 2.4 | Penyesuaian stok dengan alasan wajib | F-STK-03 | 0,5 h |
 | 2.5 | Produksi: pilih resep + skala + beberapa produk, validasi gram, selesaikan → mutasi bahan & produk, HPP rencana vs aktual, alokasi biaya adonan | F-PRO-01–04, §7.7 | 2,5 h |
-| 2.6 | Kasir: grid produk, cari, keranjang, diskon item & nota, bayar tunai/transfer/QRIS, simpan (stok −, HPP snapshot, kas +) | F-POS-01–04 | 3 h |
-| 2.7 | Struk thermal 58/80 mm + link WhatsApp | F-POS-05, 06 | 1 h |
-| 2.8 | Riwayat penjualan + pembatalan pemilik | F-POS-07, 08 | 1 h |
+| 2.6 | Kasir: grid produk, cari, keranjang, diskon item & nota, add-on per item (harga bisa diubah), bayar tunai/transfer/QRIS, simpan (stok produk & bahan add-on −, HPP snapshot, kas +) | F-POS-01–04, F-ADD-02, 03 | 3,5 h |
+| 2.7 | Struk thermal 58/80 mm + link WhatsApp (termasuk add-on) | F-POS-05, 06, F-ADD-04 | 1 h |
+| 2.8 | Riwayat penjualan + pembatalan pemilik (stok bahan add-on kembali) | F-POS-07, 08, F-ADD-04 | 1 h |
 | 2.9 | Dashboard dasar: omzet & laba hari ini, stok menipis/minus, margin di bawah target | F-DSH-01, 02, 04 | 1 h |
 | 2.10 | Laporan harian | F-LAP-01 | 0,5 h |
 | 2.11 | Pengaturan toko & parameter hitung | F-SET-01, 02 | 0,5 h |
@@ -176,11 +177,11 @@ Kode di kurung merujuk ke ID kebutuhan di [PRD §6](PRD.md#6-kebutuhan-fungsiona
 
 | # | Tugas | PRD | Est. |
 | --- | --- | --- | --- |
-| 3.1 | Pre-order: form, item + catatan kue, alur status, validasi transisi | F-PO-01, 03 | 2 h |
+| 3.1 | Pre-order: form, item + catatan kue + add-on, alur status, validasi transisi | F-PO-01, 03, F-ADD-05 | 2 h |
 | 3.2 | Pembayaran PO (DP, pelunasan, refund) → kas | F-PO-02, 07 | 1 h |
-| 3.3 | Diambil & lunas → penjualan otomatis (tanpa kas ganda) | F-PO-06 | 1 h |
+| 3.3 | Diambil & lunas → penjualan otomatis, add-on ikut (tanpa kas ganda) | F-PO-06, F-ADD-05 | 1 h |
 | 3.4 | Kalender/daftar PO + kartu PO di dashboard | F-PO-04, F-DSH-03 | 1 h |
-| 3.5 | Rekap kebutuhan bahan per tanggal ambil vs stok | F-PO-05 | 1 h |
+| 3.5 | Rekap kebutuhan bahan per tanggal ambil vs stok (termasuk bahan add-on) | F-PO-05, F-ADD-05 | 1 h |
 | 3.6 | Invoice PDF + bagikan (Web Share API / unduh) | F-INV-01–03 | 1,5 h |
 | 3.7 | Keuangan: kas manual, kategori, pemasukan bahan sisa, transfer antar akun, saldo per akun | F-KEU-01–05 | 2 h |
 | 3.8 | Laporan periode: laba rugi, produk terlaris & paling untung, pemakaian bahan, nilai stok | F-LAP-02–04 | 2 h |

@@ -328,15 +328,15 @@ Alur produksi Brownies dari draft sampai selesai bisa dilakukan di HP dalam < 2 
 Est. 1,5 hari
 
 ~~~text
-Lanjutkan proyek Toko Kue. Baca CLAUDE.md, docs/PRD.md F-POS-02 s.d. F-POS-04, §7.9, §7.10, docs/ERD.md (penjualan, penjualan_item, termasuk kunci_idempoten).
-Pakai: hppUntukSnapshot, lib/stok, lib/kas, lib/nomor, ambilPengaturan.
+Lanjutkan proyek Toko Kue. Baca CLAUDE.md, docs/PRD.md F-POS-02 s.d. F-POS-04, F-ADD-02, F-ADD-03, §7.9, §7.10, §7.12, docs/ERD.md (penjualan, penjualan_item, penjualan_item_add_on, termasuk kunci_idempoten).
+Pakai: hppUntukSnapshot, hitungItemDenganAddOn, hppAddOn, kebutuhanBahanAddOn (src/lib/hpp/add-on.ts, langkah 1.9b), lib/stok, lib/kas, lib/nomor, ambilPengaturan.
 Ini langkah 2.6a: HANYA logika server, query, dan test. UI di 2.6b.
 
 TUGAS
 1. src/features/penjualan/inti.ts — fungsi buatPenjualan(tx, input, opsi) yang DIPAKAI ULANG oleh kasir dan oleh PO (langkah 3.3):
    - input:
      {
-       items: [{ produkId, qty, hargaSatuan?, diskon: { jenis: 'rp'|'persen', nilai } }],
+       items: [{ produkId, qty, hargaSatuan?, diskon: { jenis: 'rp'|'persen', nilai }, addOns: [{ addOnId, harga? }] }],
        diskonNota: { jenis, nilai },
        metodeBayar,
        dibayar?,
@@ -349,15 +349,20 @@ TUGAS
    Alur:
    a. Jika kunciIdempoten sudah ada di tabel → kembalikan penjualan yang sudah ada (jangan buat baru)
    b. Ambil produk dari DB (nama, harga_jual, dijual, aktif). Harga dari client DIABAIKAN kecuali opsi.hargaDariInput (khusus PO)
-   c. Hitung per item:
-      - diskon persen → rupiah dibulatkan KE BAWAH
-      - subtotal = qty × harga − diskon
+      Ambil add-on dari DB (nama, harga normal, bahan, takaran_dasar, aktif). Add-on nonaktif/tidak ada → tolak.
+      Harga add-on: pakai harga dari input jika dikirim (boleh diubah kasir, integer ≥ 0), selain itu harga normal. harga_normal SELALU dari DB.
+   c. Hitung per item dengan hitungItemDenganAddOn:
+      - harga per pcs = harga produk + Σ harga add-on
+      - diskon persen → rupiah dibulatkan KE BAWAH, berlaku untuk seluruh baris
+      - subtotal = qty × harga per pcs − diskon
+      - add-on duplikat di satu item → tolak
    d. subtotal nota, diskonNota (persen dari subtotal, bulat ke bawah), total
    e. Tunai: dibayar wajib ≥ total, kembalian = dibayar − total. Non-tunai: dibayar = total, kembalian 0
-   f. hpp_satuan = hppUntukSnapshot(tx, produkIds)
-   g. no = ambilNomor('NT'); insert penjualan + items (nama_produk & harga snapshot)
+   f. hpp_satuan = hppUntukSnapshot(tx, produkIds) (HPP produk saja); hpp_satuan add-on = hppAddOn dari harga bahan saat ini
+   g. no = ambilNomor('NT'); insert penjualan + items (nama_produk & harga snapshot) + penjualan_item_add_on (nama, harga_normal, harga, hpp_satuan)
    h. catatMutasi 'penjualan' −qty per item, izinkanMinus = pengaturan.izinkan_stok_produk_minus
       → StokTidakCukupError dengan nama produk & stok tersedia
+      Bahan add-on: catatMutasi 'penjualan' per bahan (bahan_id, −kebutuhanBahanAddOn, sumber penjualan). Bahan boleh minus (ikuti F-PRO-04, beri peringatan di hasil)
    i. jika opsi.catatKas dan total > 0: catatKas masuk KATEGORI_KAS.PENJUALAN, akun = akunDariMetode(metode)
    j. return { id, noNota, total, kembalian }
 
@@ -367,10 +372,12 @@ TUGAS
    - diskon tidak melebihi subtotal
    - produk harus aktif & dijual
    - maksimal 100 baris item
+   - addOns maks 20 per item, addOnId unik per item, harga add-on integer 0–10.000.000
 
 3. queries.ts:
    - produkKasir(): DTO { id, nama, kategori, hargaJual, stok, fotoUrl } — TANPA HPP; hanya produk aktif & dijual
-   - detailPenjualan(id, peran): DTO kasir tanpa hpp_satuan/laba; DTO pemilik dengan laba per item
+   - add-on untuk kasir: pakai addOnKasir() dari src/features/add-on/queries.ts (DTO { id, nama, harga })
+   - detailPenjualan(id, peran): DTO kasir tanpa hpp_satuan/laba; DTO pemilik dengan laba per item (HPP produk + HPP add-on) dan selisih harga add-on vs normal
 
 4. Test integrasi:
    - total & kembalian benar, termasuk diskon persen item + nota
@@ -383,6 +390,11 @@ TUGAS
    - hpp_satuan terisi 2 desimal
    - produkKasir & detailPenjualan kasir tidak memuat field hpp
    - nomor nota berurutan
+   - add-on: item 2 pcs + extra keju → subtotal benar, stok bahan keju berkurang takaran × 2, HPP produk tidak berubah, HPP add-on tersimpan
+   - harga add-on diubah kasir → harga tersimpan, harga_normal dari DB (bukan dari client)
+   - add-on sama 2× di satu item → ditolak; add-on nonaktif → ditolak
+   - item tanpa add-on → tidak ada baris penjualan_item_add_on, stok bahan add-on tidak berubah
+   - invarian penjualan.total = Σ subtotal − diskon_nota tetap terjaga dengan add-on
 
 SELESAI JIKA
 Semua test lulus. Coverage src/features/penjualan ≥ 90%.
@@ -396,7 +408,7 @@ Est. 1,5 hari
 
 ~~~text
 Lanjutkan proyek Toko Kue. Baca CLAUDE.md, docs/PRD.md F-POS-01 s.d. F-POS-04 dan §9 (performa < 2 detik, mobile-first).
-Logika server kasir sudah ada (langkah 2.6a). Ini langkah 2.6b: UI kasir. Ini layar yang paling sering dipakai — utamakan kecepatan dan tombol besar.
+Logika server kasir sudah ada (langkah 2.6a). Ini langkah 2.6b: UI kasir. Ini layar yang paling sering dipakai — utamakan kecepatan dan tombol besar. Baca juga F-ADD-02 (add-on per item).
 
 TUGAS
 1. Pasang @tanstack/react-query; QueryClientProvider hanya di layout kasir (bukan global).
@@ -415,6 +427,10 @@ TUGAS
    Kunci idempoten (crypto.randomUUID) dibuat sekali per percobaan bayar; diganti setelah sukses atau setelah keranjang berubah.
 6. Keranjang:
    - per item: nama, stepper qty, harga, subtotal, tombol diskon item (dialog rp/%), hapus
+   - tombol "+ Add-on" per item → sheet berisi daftar add-on aktif (checkbox, maks. 1× per add-on) dengan harga yang bisa diubah (InputRupiah, terisi harga normal, tombol "Kembalikan harga normal")
+   - add-on terpilih tampil di bawah nama item: "+ Extra keju 3.000" (harga yang diubah ditandai kecil "diubah")
+   - teks bantuan: "Add-on berlaku untuk semua pcs di baris ini. Kalau hanya sebagian, tambahkan baris baru."
+   - produk yang sama dengan kombinasi add-on berbeda = baris keranjang berbeda; ketuk produk di grid menambah ke baris TANPA add-on
    - diskon nota, catatan
    - ringkasan subtotal/diskon/total
    - tombol "Kosongkan" (konfirmasi)
@@ -436,7 +452,7 @@ TUGAS
    - target ≥ 44 px
    - Enter di pencarian menambah produk jika hasilnya tepat satu
 10. Test e2e Playwright (project mobile):
-    login kasir → tambah 2 produk → diskon nota 10% → bayar tunai 50.000 → kembalian benar → layar sukses → stok produk berkurang di daftar.
+    login kasir → tambah 2 produk → beri 1 item add-on "Extra keju" → diskon nota 10% → bayar tunai 50.000 → kembalian benar → layar sukses → stok produk berkurang di daftar.
     Gunakan seed contoh + user kasir test (buat helper e2e untuk login).
 
 SELESAI JIKA
@@ -455,7 +471,7 @@ Ini langkah 2.7.
 
 TUGAS
 1. src/features/struk/data.ts — dataStruk(penjualanId): data murni untuk struk:
-   toko (nama, alamat, telp, logo, footer, ukuran kertas), no nota, waktu WIB, kasir, item, subtotal, diskon, total, metode, dibayar, kembalian, status batal.
+   toko (nama, alamat, telp, logo, footer, ukuran kertas), no nota, waktu WIB, kasir, item (+ add-on per item: nama & harga), subtotal, diskon, total, metode, dibayar, kembalian, status batal.
    TANPA HPP.
 
 2. Route /cetak/struk/[id] (di luar grup (app), tanpa navigasi, requirePengguna):
@@ -463,14 +479,14 @@ TUGAS
      - @page { size: 58mm auto; margin: 0 } atau 80mm sesuai pengaturan
      - lebar konten 48 mm / 72 mm
      - font monospace 11–12 px, hitam pekat, tanpa warna/bayangan
-   - Tata letak: logo (grayscale, maks lebar 40 mm, opsional) · nama toko tebal · alamat/telp · garis putus · no nota & tanggal & kasir · item (nama di baris sendiri, "2 x 15.000" kiri, subtotal kanan, diskon di bawahnya) · garis · subtotal/diskon/TOTAL tebal · bayar/kembalian · metode · garis · footer · "*** BATAL ***" besar jika batal
+   - Tata letak: logo (grayscale, maks lebar 40 mm, opsional) · nama toko tebal · alamat/telp · garis putus · no nota & tanggal & kasir · item (nama di baris sendiri, add-on di bawahnya "  + Extra keju 3.000", "2 x 18.000" kiri (harga per pcs termasuk add-on), subtotal kanan, diskon di bawahnya) · garis · subtotal/diskon/TOTAL tebal · bayar/kembalian · metode · garis · footer · "*** BATAL ***" besar jika batal
    - Jika ?cetak=1: komponen client memanggil window.print() setelah gambar logo dimuat, lalu menampilkan tombol "Kembali ke kasir"
    - Tombol "Cetak" dan "Tutup" disembunyikan saat print (@media print)
 
 3. src/features/struk/teks.ts — teksStruk(data, lebarKolom = 32): string untuk WhatsApp/ESC-POS nanti
    - rata kiri-kanan dengan padding spasi
    - nama panjang dipotong ke baris berikutnya
-   - Unit test dengan snapshot untuk 58 mm (32 kolom) dan 80 mm (48 kolom)
+   - Unit test dengan snapshot untuk 58 mm (32 kolom) dan 80 mm (48 kolom), termasuk item dengan 2 add-on
 
 4. Kirim WhatsApp:
    - dialog opsional untuk nomor HP pembeli (normalisasi 08 → 628, validasi)
@@ -516,8 +532,8 @@ TUGAS
    - daftar kartu: no, jam, item ringkas, total, metode, badge BATAL
 
 3. /penjualan/[id]:
-   - detail item
-   - pemilik: kolom HPP & laba per item + total laba
+   - detail item + add-on per item
+   - pemilik: kolom HPP & laba per item (HPP produk + add-on) + total laba; tanda pada add-on yang harganya diubah kasir (harga normal → dipakai)
    - tombol Cetak ulang struk, Kirim WhatsApp
    - pemilik: tombol "Batalkan transaksi"
 
@@ -525,13 +541,14 @@ TUGAS
    - kunci baris; tolak jika sudah batal
    - tolak jika pre_order_id terisi (pesan: "Transaksi dari pre-order tidak bisa dibatalkan di sini")
    - per item: catatMutasi 'batal_penjualan' +qty
+   - per bahan add-on: catatMutasi 'batal_penjualan' + takaran yang dulu dikurangi (ambil dari stok_mutasi sumber penjualan ini, bukan dihitung ulang)
    - batalkanKasDariSumber('penjualan', id)
    - set status batal, alasan, dibatalkan_oleh/pada
    - catatAudit
 
 5. Test integrasi:
    - kasir tidak bisa melihat transaksi kemarin walau mengirim filter tanggal
-   - batal → stok & kas kembali, laporan omzet tidak menghitungnya
+   - batal → stok produk, stok bahan add-on & kas kembali, laporan omzet tidak menghitungnya
    - batal ganda ditolak
    - batal penjualan dari PO ditolak
    - kasir tidak bisa membatalkan
@@ -555,6 +572,7 @@ TUGAS
    - ringkasanPenjualan({ mulai, selesai }):
      { omzet, jumlahTransaksi, rataRata, hppTerjual, labaKotor, perMetode: { tunai, transfer, qris } }
      - hanya status selesai
+     - hppTerjual = Σ (hpp_satuan + Σ hpp_satuan add-on) × qty
      - SATU query agregasi SQL
    - bahanPerluPerhatian(): bahan stok ≤ minimal atau < 0, urut minus dulu
    - produkMarginRendah(): dari hppSemuaProduk, diBawahTarget = true
@@ -573,7 +591,7 @@ TUGAS
 3. Test integrasi ringkasanPenjualan:
    - transaksi batal tidak dihitung
    - batas hari WIB benar (transaksi 23.30 WIB masuk hari itu; 00.30 WIB masuk hari berikutnya)
-   - laba kotor = Σ subtotal − Σ hpp×qty
+   - laba kotor = Σ subtotal − Σ (hpp produk + hpp add-on)×qty, termasuk transaksi dengan add-on
 
 SELESAI JIKA
 Dashboard pemilik dan kasir tampil sesuai peran dengan angka yang benar.
@@ -593,10 +611,12 @@ TUGAS
 1. Query tambahan:
    - penjualanPerProduk({ mulai, selesai }): produk, qty, omzet, hpp, laba, margin % (urut omzet)
    - transaksiBatal({ mulai, selesai })
+   - addOnTerjual({ mulai, selesai }): nama add-on, jumlah dipakai (Σ qty item), omzet add-on, HPP, laba, total selisih harga vs normal
 2. /laporan/harian?tanggal=YYYY-MM-DD (default hari ini, tombol ◀ ▶ hari):
    - ringkasan: omzet, diskon total, transaksi, HPP terjual, laba kotor, margin %
    - per metode bayar (untuk mencocokkan uang di laci & rekening)
    - tabel per produk
+   - tabel add-on terjual (termasuk total potongan harga add-on oleh kasir)
    - daftar transaksi batal + alasan
    - tombol Cetak (CSS print A4 rapi)
 3. /laporan: halaman indeks berisi tautan Harian (dan placeholder laporan periode untuk 3.8).

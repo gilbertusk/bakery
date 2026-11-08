@@ -50,6 +50,10 @@ erDiagram
     bahan ||--o{ stok_opname_item : dihitung
     konversi_satuan ||--o{ resep_adonan_item : "satuan input"
     konversi_satuan ||--o{ produk_komponen : "satuan input"
+    bahan ||--o{ add_on : "bahan add-on"
+    konversi_satuan ||--o{ add_on : "satuan input"
+    add_on ||--o{ penjualan_item_add_on : dipilih
+    add_on ||--o{ pre_order_item_add_on : dipesan
 
     resep_adonan ||--o{ resep_adonan_item : berisi
     resep_adonan ||--o{ produk_komponen : "adonan produk"
@@ -70,7 +74,9 @@ erDiagram
     stok_opname ||--|{ stok_opname_item : berisi
 
     penjualan ||--|{ penjualan_item : berisi
+    penjualan_item ||--o{ penjualan_item_add_on : "add-on"
     pre_order ||--|{ pre_order_item : berisi
+    pre_order_item ||--o{ pre_order_item_add_on : "add-on"
     pre_order ||--o{ po_pembayaran : dibayar
     pre_order |o--o| penjualan : "jadi penjualan"
     pre_order ||--o{ invoice : ditagih
@@ -158,7 +164,19 @@ erDiagram
         uuid produk_id FK "null = semua produk"
         bool aktif
     }
+    add_on {
+        uuid id PK
+        text nama UK
+        uuid bahan_id FK "tepat satu bahan"
+        numeric takaran "per pcs, satuan input"
+        uuid konversi_satuan_id FK
+        numeric takaran_dasar "per pcs"
+        int harga "harga jual normal"
+        bool aktif "berlaku semua produk"
+    }
 
+    bahan ||--o{ add_on : "bahan add-on"
+    konversi_satuan ||--o{ add_on : satuan
     bahan ||--o{ konversi_satuan : punya
     bahan ||--o{ resep_adonan_item : dipakai
     bahan ||--o{ produk_komponen : "bahan langsung"
@@ -309,6 +327,15 @@ erDiagram
         int subtotal
         numeric hpp_satuan "14,2 snapshot"
     }
+    penjualan_item_add_on {
+        uuid id PK
+        uuid penjualan_item_id FK
+        uuid add_on_id FK
+        text nama_add_on "snapshot"
+        int harga_normal "snapshot"
+        int harga "dipakai, boleh diubah kasir"
+        numeric hpp_satuan "14,2 snapshot"
+    }
     pre_order {
         uuid id PK
         text no_po UK "PO-YYMMDD-NNN"
@@ -336,6 +363,13 @@ erDiagram
         int harga_satuan
         int subtotal
         text catatan_kue "tulisan, warna"
+    }
+    pre_order_item_add_on {
+        uuid id PK
+        uuid pre_order_item_id FK
+        uuid add_on_id FK
+        int harga_normal
+        int harga
     }
     po_pembayaran {
         uuid id PK
@@ -376,7 +410,9 @@ erDiagram
     }
 
     penjualan ||--|{ penjualan_item : berisi
+    penjualan_item ||--o{ penjualan_item_add_on : "add-on"
     pre_order ||--|{ pre_order_item : berisi
+    pre_order_item ||--o{ pre_order_item_add_on : "add-on"
     pre_order ||--o{ po_pembayaran : dibayar
     pre_order |o--o| penjualan : "jadi penjualan"
     pre_order ||--o{ invoice : ditagih
@@ -530,6 +566,20 @@ Kolom standar (`id`, `dibuat_pada`, `diubah_pada`, `dibuat_oleh`) tidak diulang 
 | nilai | numeric(14,4) | tidak | ≥ 0 |
 | produk_id | uuid FK | ya | Null = berlaku untuk semua produk |
 
+**`add_on`** (PRD §6.4a)
+
+| Kolom | Tipe | Null | Aturan |
+| --- | --- | --- | --- |
+| nama | text | tidak | Unik (case-insensitive) |
+| bahan_id | uuid FK | tidak | Tepat satu bahan. `ON DELETE RESTRICT` |
+| takaran | numeric(14,3) | tidak | > 0, per pcs, dalam satuan input |
+| konversi_satuan_id | uuid FK | ya | Satuan input; null = satuan dasar bahan |
+| takaran_dasar | numeric(14,3) | tidak | > 0, per pcs, dalam satuan dasar |
+| harga | integer | tidak | Harga jual normal per pcs, ≥ 0 |
+| aktif | boolean | tidak | Add-on aktif berlaku untuk semua produk |
+
+HPP add-on **tidak disimpan** di tabel ini; dihitung dari `takaran_dasar × bahan.harga_per_satuan` (§6). Add-on yang sudah dipakai transaksi hanya bisa dinonaktifkan (FK `RESTRICT` dari tabel item add-on).
+
 ### 4.3 Stok & produksi
 
 **`pembelian`** / **`pembelian_item`**
@@ -590,9 +640,22 @@ Indeks: `(bahan_id, waktu)`, `(produk_id, waktu)`, `(sumber_tipe, sumber_id)`.
 
 **`penjualan_item`**
 
-- `subtotal = qty × harga_satuan − diskon_item`
-- `qty > 0`, `0 ≤ diskon_item ≤ qty × harga_satuan`
-- `hpp_satuan` = HPP produk saat transaksi (snapshot, presisi 2 desimal)
+- `subtotal = qty × (harga_satuan + Σ add_on.harga) − diskon_item`
+- `qty > 0`, `0 ≤ diskon_item ≤ qty × (harga_satuan + Σ add_on.harga)`
+- `hpp_satuan` = HPP produk saat transaksi (snapshot, presisi 2 desimal), **tanpa** add-on
+
+**`penjualan_item_add_on`**
+
+| Kolom | Tipe | Aturan |
+| --- | --- | --- |
+| penjualan_item_id | uuid FK | `ON DELETE CASCADE` |
+| add_on_id | uuid FK | `ON DELETE RESTRICT`. `UNIQUE(penjualan_item_id, add_on_id)` → maks. 1× per item |
+| nama_add_on | text | Snapshot |
+| harga_normal | integer | ≥ 0. Snapshot `add_on.harga` saat transaksi |
+| harga | integer | ≥ 0. Harga per pcs yang dipakai (boleh diubah kasir). Selisih = `harga − harga_normal` |
+| hpp_satuan | numeric(14,2) | Snapshot HPP add-on per pcs |
+
+Add-on berlaku untuk semua pcs di item itu. Stok bahan add-on dikurangi lewat `stok_mutasi` jenis `penjualan` (`bahan_id`, `qty = −takaran_dasar × item.qty`, sumber penjualan), dan dibalik dengan `batal_penjualan`.
 
 **`pre_order`**
 
@@ -611,6 +674,10 @@ Indeks: `(bahan_id, waktu)`, `(produk_id, waktu)`, `(sumber_tipe, sumber_id)`.
 
 - `diambil` hanya bisa jika `status_bayar = lunas`. Saat itu dibuat `penjualan` dengan `pre_order_id` terisi.
 - `CHECK`: status `batal` → `alasan_batal` dan `dibatalkan_pada` terisi. `dibatalkan_pada` juga menjadi tanggal pengakuan DP hangus di laporan.
+
+**`pre_order_item`**: `subtotal = qty × (harga_satuan + Σ add_on.harga)`.
+
+**`pre_order_item_add_on`**: `UNIQUE(pre_order_item_id, add_on_id)`, `harga_normal ≥ 0`, `harga ≥ 0`, `pre_order_item_id ON DELETE CASCADE`, `add_on_id ON DELETE RESTRICT`. HPP tidak disimpan; HPP disalin saat PO diambil menjadi penjualan.
 
 **`po_pembayaran`**: `nominal > 0`. Setiap baris membuat satu baris `kas`. Untuk jenis `refund`, kas keluar dan dihitung negatif di `dibayar`.
 
@@ -721,6 +788,7 @@ Nilai berikut **dihitung**, tidak disimpan sebagai kolom, agar selalu memakai ha
 | Biaya total & per gram adonan | `resep_adonan_item.takaran_dasar × bahan.harga_per_satuan` ÷ `resep_adonan.hasil_gram` |
 | HPP per pcs & rinciannya | `produk_komponen` + biaya adonan + `biaya_tambahan` |
 | Pcs per resep | `floor(hasil_gram ÷ gram_per_pcs adonan utama)` |
+| HPP add-on per pcs | `add_on.takaran_dasar × bahan.harga_per_satuan` |
 | Margin & saran harga | HPP + `produk.harga_jual` + target margin |
 | Status invoice | `pre_order.status_bayar` |
 | Saldo kas | Σ `kas` per akun |
@@ -741,5 +809,5 @@ Dicek oleh test integrasi dan oleh fungsi `cek_integritas()` yang bisa dijalanka
 
 - Semua tabel di schema `public` **mengaktifkan RLS tanpa policy** (deny-all). Akibatnya anon key Supabase yang ada di browser tidak bisa membaca/menulis tabel apa pun lewat PostgREST.
 - Seluruh akses data lewat server Next.js memakai Drizzle dengan koneksi database langsung. Hak akses dicek di server per aksi (`requirePeran('pemilik')`).
-- Response untuk kasir memakai DTO terpisah yang **tidak** memuat `hpp_satuan`, `harga_per_satuan`, `biaya_*`, atau laba.
+- Response untuk kasir memakai DTO terpisah yang **tidak** memuat `hpp_satuan`, `harga_per_satuan`, `biaya_*`, atau laba. Termasuk data add-on: kasir hanya menerima nama dan harga.
 - Supabase Storage (logo, foto produk): bucket publik-baca untuk foto produk, upload hanya lewat server.

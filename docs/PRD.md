@@ -49,7 +49,7 @@ Toko kue Khansa saat ini menghitung HPP, stok, dan pembukuan secara manual di Ex
 | 2 | Master Bahan & Supplier | MVP |
 | 3 | Stok & Pembelian | MVP (pembelian, kartu stok) → R2 (opname, grafik harga) |
 | 4 | Resep Adonan (BOM level 1) | MVP |
-| 5 | Produk per Cetakan & HPP (BOM level 2) | MVP |
+| 5 | Produk per Cetakan & HPP (BOM level 2), termasuk add-on | MVP |
 | 6 | Produksi | MVP |
 | 7 | Kasir (POS) | MVP |
 | 8 | Pre-Order | R2 |
@@ -162,6 +162,28 @@ Format: **ID — user story**, lalu kriteria penerimaan (KP). Prioritas: **P0** 
 **F-PRD-06 (P1)** — Biaya tambahan/overhead: per pcs, % dari biaya bahan, atau per batch. Berlaku untuk semua produk atau produk tertentu.
 
 **F-PRD-07 (P1)** — Simulasi kenaikan harga: pilih bahan + % kenaikan, tampilkan daftar produk terdampak beserta HPP dan margin lama vs baru. Tidak menyimpan perubahan apa pun.
+
+### 6.4a Add-on (tambahan pilihan pembeli)
+
+Add-on adalah tambahan yang **hanya dipakai jika pembeli memintanya** saat membeli, misalnya "Extra keju". Produk tanpa add-on tetap memakai harga jual dan HPP aslinya. Berbeda dengan komponen produk (F-PRD-02) yang selalu ikut di setiap pcs.
+
+**F-ADD-01 (P0)** — Master add-on (pemilik): nama (unik), satu bahan + takaran per pcs (boleh memakai konversi satuan), harga jual normal, aktif.
+- KP1: Satu add-on hanya berisi **satu bahan**.
+- KP2: Add-on aktif berlaku untuk **semua produk**, tidak diatur per produk.
+- KP3: HPP add-on per pcs = takaran dasar × harga per satuan bahan (§7.12), tampil di daftar beserta margin.
+- KP4: Add-on yang sudah pernah dipakai di transaksi tidak bisa dihapus, hanya dinonaktifkan.
+
+**F-ADD-02 (P0)** — Pilih add-on di kasir: setiap baris keranjang bisa diberi satu atau beberapa add-on berbeda.
+- KP1: Setiap add-on paling banyak **1× per item** (tidak ada "extra keju 2×").
+- KP2: Add-on berlaku untuk **semua pcs** di baris itu. Jika hanya sebagian pcs yang memakai add-on, kasir membuat baris terpisah.
+- KP3: Harga add-on terisi dari harga normal dan **boleh diubah kasir** (≥ 0). Sistem menyimpan harga normal dan harga yang dipakai, tanpa wajib alasan.
+- KP4: Kasir hanya menerima nama dan harga jual add-on, tanpa HPP.
+
+**F-ADD-03 (P0)** — Simpan transaksi dengan add-on: harga, HPP add-on (snapshot), dan pengurangan stok bahan add-on (takaran × qty) tercatat dalam **satu transaksi database** yang sama dengan penjualan. Pembatalan penjualan mengembalikan stok bahan add-on.
+
+**F-ADD-04 (P0)** — Add-on tampil di keranjang, struk, teks WhatsApp, riwayat, dan detail penjualan. Pemilik melihat HPP, laba, dan selisih harga add-on (harga dipakai vs normal).
+
+**F-ADD-05 (P1)** — Add-on di pre-order: item PO bisa diberi add-on dengan aturan yang sama. Saat PO diambil, add-on ikut ke penjualan. Rekap kebutuhan bahan PO ikut menghitung bahan add-on.
 
 ### 6.5 Produksi
 
@@ -339,11 +361,11 @@ Jika produk punya lebih dari satu adonan, overhead per batch memakai adonan deng
 | Pembelian bahan | + | — | keluar | — |
 | Batal pembelian | − | — | kas asal ditandai batal | — |
 | Produksi selesai | − (resep × skala, + bahan langsung × pcs) | + pcs aktual | — | — |
-| Penjualan kasir | — | − qty | masuk | + |
-| Batal penjualan | — | + qty | kas asal ditandai batal | − |
+| Penjualan kasir | − bahan add-on (takaran × qty) | − qty | masuk | + |
+| Batal penjualan | + bahan add-on | + qty | kas asal ditandai batal | − |
 | PO: DP diterima | — | — | masuk | — |
 | PO: pelunasan | — | — | masuk | — |
-| PO: diambil & lunas | — | − qty | — (sudah dari DP + pelunasan) | + |
+| PO: diambil & lunas | − bahan add-on | − qty | — (sudah dari DP + pelunasan) | + |
 | PO batal, DP dikembalikan | — | — | keluar | — |
 | PO batal, DP hangus | — | — | — (sudah masuk) | pendapatan lain |
 | Pemasukan bahan sisa | tidak berubah | — | masuk | pendapatan lain |
@@ -358,9 +380,18 @@ Jika produk punya lebih dari satu adonan, overhead per batch memakai adonan deng
 - `INV` invoice
 
 **7.11 Laporan laba.**
-- `laba_kotor = Σ (subtotal_item − hpp_satuan × qty)` dari penjualan berstatus selesai.
+- `laba_kotor = Σ (subtotal_item − (hpp_satuan + Σ hpp_satuan_add_on) × qty)` dari penjualan berstatus selesai.
 - `laba_bersih = laba_kotor + pendapatan_lain − biaya_operasional − nilai_penyesuaian_stok_negatif`.
 - `hpp_satuan` di penjualan memakai HPP rencana (dari harga bahan saat transaksi). Kerugian afkir produksi di v1 tidak masuk laba. Kerugian ini dipantau lewat selisih HPP aktual vs rencana di modul Produksi.
+
+**7.12 Add-on.** Per item penjualan, untuk setiap add-on yang dipilih (maks. 1× per add-on):
+```
+hpp_add_on_per_pcs = takaran_dasar × harga_per_satuan_bahan        (tanpa overhead)
+harga_item_per_pcs = harga_satuan_produk + Σ harga_add_on_dipakai
+subtotal_item      = qty × harga_item_per_pcs − diskon_item
+stok_bahan_add_on  −= takaran_dasar × qty
+```
+Diskon item berlaku untuk seluruh baris, termasuk add-on. HPP produk (`hpp_satuan`) tidak berubah karena add-on; HPP add-on disimpan terpisah.
 
 ## 8. Hak akses
 
@@ -406,6 +437,7 @@ Kasir tidak boleh menerima data HPP, harga bahan, atau laba **dari server**, buk
 | K6 | Internet di toko stabil? | Stabil, tanpa mode offline | R3 |
 | K7 | **(baru)** Boleh berlangganan hosting berbayar (±Rp700 rb/bulan) atau harus gratis? | Lihat [PLAN.md §7](PLAN.md#7-hosting--biaya) | Hosting & backup |
 | K8 | **(baru)** Produk PO custom (tulisan, warna) dibuat sebagai produk tersendiri, atau produk biasa + catatan? | Produk biasa + catatan, harga bisa diubah per item PO | Struktur PO |
+| K9 | **(dijawab)** Aturan add-on? | Berlaku untuk semua produk; 1 bahan per add-on; maks. 1× per item, berlaku untuk semua pcs di baris; harga boleh diubah kasir, harga normal dicatat | §6.4a, §7.12 |
 
 **Data awal dari Khansa:**
 - Daftar bahan dan harga beli terakhir
@@ -438,3 +470,4 @@ Kasir tidak boleh menerima data HPP, harga bahan, atau laba **dari server**, buk
 | **Opname** | Penghitungan stok fisik untuk dicocokkan dengan sistem |
 | **PO** | Pre-order, pesanan dengan tanggal ambil di masa depan |
 | **DP** | Uang muka pesanan |
+| **Add-on** | Tambahan pilihan pembeli saat membeli (mis. extra keju), hanya dihitung jika dipilih |
