@@ -95,6 +95,9 @@ export function aksi<S extends z.ZodType, T>({
     } catch (error) {
       unstable_rethrow(error);
       const pesan = pesanUntuk(error);
+      if (pesan && error instanceof PesanError && error.field) {
+        return { ok: false, error: pesan, fieldErrors: { [error.field]: [pesan] } };
+      }
       if (pesan) return { ok: false, error: pesan };
 
       log.error('Server action gagal', { error, penggunaId: pengguna?.id });

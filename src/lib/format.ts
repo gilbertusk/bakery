@@ -38,6 +38,22 @@ export function formatTakaran(nilai: NilaiAngka, satuan: string): string {
   return `${formatAngka(nilai)} ${satuan}`;
 }
 
+/** ("13.5000", "g") → "Rp13,5/g". Harga bahan per satuan dasar, maks 4 desimal. */
+export function formatHargaSatuan(nilai: NilaiAngka, satuan: string): string {
+  return `Rp${formatAngka(nilai, 4)}/${satuan}`;
+}
+
+/** 15000 → "15.000"; null → "". Untuk nilai di dalam input rupiah. */
+export function formatRibuan(nilai: number | null): string {
+  return nilai === null ? '' : kelompokkan(String(nilai));
+}
+
+/** Ketikan di input rupiah: ambil digit saja (maks 15 digit agar tetap aman). Tanpa digit = null. */
+export function parseKetikanRupiah(teks: string): number | null {
+  const digit = teks.replace(/\D/g, '').slice(0, 15);
+  return digit ? Number(digit) : null;
+}
+
 /**
  * Parse input rupiah dari pengguna. Menerima "15000", "15.000", "Rp 15.000", "15.000,00".
  * Mengembalikan null bila tidak valid (termasuk negatif dan sen bukan nol).

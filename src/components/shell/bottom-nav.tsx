@@ -16,15 +16,18 @@ import { isMenuAktif, menuBottomNav, menuLainnya } from '@/config/navigasi';
 import type { Peran } from '@/db/schema/enums';
 import { cn } from '@/lib/utils';
 
+import { LencanaJumlah, type LencanaMenu } from './lencana-menu';
+
 const kelasItem =
   'flex min-h-14 flex-1 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[0.7rem] font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
-export function BottomNav({ peran }: { peran: Peran }) {
+export function BottomNav({ peran, lencana }: { peran: Peran; lencana: LencanaMenu }) {
   const pathname = usePathname();
   const [bukaLainnya, setBukaLainnya] = useState(false);
   const utama = menuBottomNav(peran);
   const lainnya = menuLainnya(peran);
   const lainnyaAktif = lainnya.some((item) => isMenuAktif(pathname, item.href));
+  const lencanaLainnya = lainnya.reduce((total, item) => total + (lencana[item.href] ?? 0), 0);
 
   return (
     <>
@@ -69,11 +72,16 @@ export function BottomNav({ peran }: { peran: Peran }) {
           >
             <span
               className={cn(
-                'flex h-7 w-12 items-center justify-center rounded-full transition-colors',
+                'relative flex h-7 w-12 items-center justify-center rounded-full transition-colors',
                 lainnyaAktif && 'bg-secondary',
               )}
             >
               <Ellipsis className="size-5" aria-hidden />
+              <LencanaJumlah
+                jumlah={lencanaLainnya}
+                label="perlu perhatian"
+                className="absolute -top-1 right-0"
+              />
             </span>
             Lainnya
           </button>
@@ -102,7 +110,7 @@ export function BottomNav({ peran }: { peran: Peran }) {
                   onClick={() => setBukaLainnya(false)}
                   aria-current={aktif ? 'page' : undefined}
                   className={cn(
-                    'focus-visible:ring-ring flex min-h-20 flex-col items-center justify-center gap-2 rounded-xl border p-2 text-center text-xs font-medium transition-colors outline-none focus-visible:ring-2',
+                    'focus-visible:ring-ring relative flex min-h-20 flex-col items-center justify-center gap-2 rounded-xl border p-2 text-center text-xs font-medium transition-colors outline-none focus-visible:ring-2',
                     aktif
                       ? 'border-primary bg-secondary text-secondary-foreground'
                       : 'hover:bg-muted',
@@ -110,6 +118,11 @@ export function BottomNav({ peran }: { peran: Peran }) {
                 >
                   <Ikon className="size-6" aria-hidden />
                   {label}
+                  <LencanaJumlah
+                    jumlah={lencana[href]}
+                    label="perlu perhatian"
+                    className="absolute top-1.5 right-1.5"
+                  />
                 </Link>
               );
             })}

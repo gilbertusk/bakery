@@ -9,14 +9,17 @@ import { type GrupMenu, LABEL_GRUP, isMenuAktif, menuUntuk } from '@/config/navi
 import type { Peran } from '@/db/schema/enums';
 import { cn } from '@/lib/utils';
 
+import { LencanaJumlah, type LencanaMenu } from './lencana-menu';
+
 type SidebarProps = {
   peran: Peran;
   namaToko: string;
   ciut: boolean;
   onToggle: () => void;
+  lencana: LencanaMenu;
 };
 
-export function Sidebar({ peran, namaToko, ciut, onToggle }: SidebarProps) {
+export function Sidebar({ peran, namaToko, ciut, onToggle, lencana }: SidebarProps) {
   const pathname = usePathname();
   const menu = menuUntuk(peran);
   const grup = [...new Set(menu.map((item) => item.grup))] as GrupMenu[];
@@ -67,11 +70,16 @@ export function Sidebar({ peran, namaToko, ciut, onToggle }: SidebarProps) {
                       'focus-visible:ring-sidebar-ring outline-none focus-visible:ring-2',
                       aktif &&
                         'bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary hover:text-sidebar-primary-foreground',
-                      ciut && 'justify-center px-0',
+                      ciut && 'relative justify-center px-0',
                     )}
                   >
                     <Ikon className="size-5 shrink-0" aria-hidden />
                     <span className={cn(ciut && 'sr-only')}>{label}</span>
+                    <LencanaJumlah
+                      jumlah={lencana[href]}
+                      label="perlu perhatian"
+                      className={ciut ? 'absolute top-0.5 right-0.5' : 'ml-auto'}
+                    />
                   </Link>
                 );
               })}

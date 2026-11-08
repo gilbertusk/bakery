@@ -4,17 +4,24 @@ import { D, type Decimal, type NilaiAngka } from '@/lib/angka';
 import { positif, tidakNegatif } from './_validasi';
 import { HitungError } from './error';
 
-export type SatuanKemasan = 'kg' | 'g' | 'l' | 'ml' | 'pcs' | 'lusin';
+export const SATUAN_KEMASAN = ['kg', 'g', 'l', 'ml', 'pcs', 'lusin'] as const;
 
-/** Isi satu satuan kemasan dalam satuan dasar yang cocok. */
+export type SatuanKemasan = (typeof SATUAN_KEMASAN)[number];
+
+/** Isi satu satuan kemasan dalam satuan dasar yang cocok. Urutan = urutan pilihan di UI. */
 const ISI_KEMASAN: Record<SatuanKemasan, { dasar: SatuanDasar; isi: string }> = {
   kg: { dasar: 'g', isi: '1000' },
   g: { dasar: 'g', isi: '1' },
   l: { dasar: 'ml', isi: '1000' },
   ml: { dasar: 'ml', isi: '1' },
-  lusin: { dasar: 'pcs', isi: '12' },
   pcs: { dasar: 'pcs', isi: '1' },
+  lusin: { dasar: 'pcs', isi: '12' },
 };
+
+/** Satuan kemasan yang bisa dipakai untuk bahan bersatuan dasar tertentu. */
+export function satuanKemasanUntuk(satuanDasar: SatuanDasar): SatuanKemasan[] {
+  return SATUAN_KEMASAN.filter((satuan) => ISI_KEMASAN[satuan].dasar === satuanDasar);
+}
 
 /** PRD §7.1: takaran × nilai konversi. `null` = takaran sudah dalam satuan dasar. */
 export function keSatuanDasar(takaran: NilaiAngka, nilaiKonversi: NilaiAngka | null): Decimal {

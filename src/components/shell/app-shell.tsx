@@ -6,6 +6,7 @@ import { useCallback, useSyncExternalStore } from 'react';
 import type { Peran } from '@/db/schema/enums';
 
 import { BottomNav } from './bottom-nav';
+import type { LencanaMenu } from './lencana-menu';
 import { MenuPengguna } from './menu-pengguna';
 import { Sidebar } from './sidebar';
 
@@ -37,15 +38,22 @@ function useSidebarCiut() {
 type AppShellProps = {
   namaToko: string;
   pengguna: { nama: string; peran: Peran };
+  lencana?: LencanaMenu;
   children: ReactNode;
 };
 
-export function AppShell({ namaToko, pengguna, children }: AppShellProps) {
+export function AppShell({ namaToko, pengguna, lencana = {}, children }: AppShellProps) {
   const [ciut, toggleCiut] = useSidebarCiut();
 
   return (
     <div className="flex min-h-svh flex-1">
-      <Sidebar peran={pengguna.peran} namaToko={namaToko} ciut={ciut} onToggle={toggleCiut} />
+      <Sidebar
+        peran={pengguna.peran}
+        namaToko={namaToko}
+        ciut={ciut}
+        onToggle={toggleCiut}
+        lencana={lencana}
+      />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="bg-background/95 supports-backdrop-filter:bg-background/80 sticky top-0 z-30 flex h-14 items-center gap-2 border-b px-4 backdrop-blur">
@@ -63,7 +71,7 @@ export function AppShell({ namaToko, pengguna, children }: AppShellProps) {
         </main>
       </div>
 
-      <BottomNav peran={pengguna.peran} />
+      <BottomNav peran={pengguna.peran} lencana={lencana} />
     </div>
   );
 }

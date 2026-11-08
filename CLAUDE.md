@@ -143,6 +143,8 @@ Pakai fungsi ini, jangan membuat ulang. `Tx` = transaksi Drizzle (`db.transactio
 - `formatRupiahDesimal(nilai: NilaiAngka, desimal = 2): string`: `"Rp13,50"`
 - `formatAngka(nilai: NilaiAngka, maksDesimal = 4): string`: `"1.200,5"`
 - `formatTakaran(nilai: NilaiAngka, satuan: string): string`: `"36 g"`
+- `formatHargaSatuan(nilai: NilaiAngka, satuan: string): string`: `"Rp13,5/g"`
+- `formatRibuan(nilai: number | null): string` dan `parseKetikanRupiah(teks: string): number | null`: untuk `InputRupiah`
 - `parseRupiah(input: string): number | null`: null bila tidak valid
 - `formatTanggal(waktu: Date | string): string`: `"3 Nov 2026"`; string `YYYY-MM-DD` dianggap tanggal WIB
 - `formatWaktu(waktu: Date | string): string`: `"3 Nov 2026 14.05"`
@@ -186,11 +188,13 @@ Pakai fungsi ini, jangan membuat ulang. `Tx` = transaksi Drizzle (`db.transactio
   - Error dipetakan: `PesanError` (termasuk `StokTidakCukupError`), `BelumLoginError`, `TidakBerwenangError` → pesannya; Postgres `23505` → "Data dengan nama ini sudah ada"; `23503` → "Data masih dipakai di tempat lain"; lainnya dicatat `log.error` dan menjadi "Terjadi kesalahan, coba lagi".
   - `redirect()`/`notFound()` diteruskan.
 - `HasilAksi<T>`, `PesanError` (juga di `@/lib/error`): lempar `new PesanError('…')` untuk pesan bisnis yang aman ditampilkan.
+  - `new PesanError('…', { field: 'nama' })` juga mengisi `fieldErrors.nama` pada hasil action.
 
 **`@/lib/hpp`** (murni, Decimal penuh, tanpa pembulatan kecuali `saranHarga`; input salah → `HitungError extends PesanError`)
 
 - `keSatuanDasar(takaran, nilaiKonversi | null): Decimal`: §7.1, `null` = sudah satuan dasar
 - `kemasanKeDasar(jumlah, satuanKemasan: 'kg'|'g'|'l'|'ml'|'pcs'|'lusin', satuanDasar): Decimal`
+- `SATUAN_KEMASAN` dan `satuanKemasanUntuk(satuanDasar)`: daftar kemasan yang cocok untuk dropdown UI
 - `hargaPerSatuanDasar(totalHarga, qtyDasar): Decimal`: §7.2
 - `hargaBaruBahan({ metode, stokLama, hargaLama, qtyBeli, hargaBeli }): Decimal`: §7.8, stok minus dianggap 0
 - `biayaAdonan({ items: { takaranDasar, hargaPerSatuan }[], hasilGram }): { biayaTotal; biayaPerGram }`: §7.3
@@ -212,6 +216,19 @@ Pakai fungsi ini, jangan membuat ulang. `Tx` = transaksi Drizzle (`db.transactio
 
 - `normalisasiKontak(input: string): { ok: true; nilai: string | null } | { ok: false; error }`: nomor HP `08…`/`+62 8…` → `628…`; kontak lain disimpan apa adanya; kosong → null
 - `nomorWhatsApp(kontak): string | null`, `linkWhatsApp(kontak): string | null` (`https://wa.me/628…`)
+
+**`@/lib/skema-angka`**
+
+- `angkaDesimal({ maksDesimal, positif?, maksDigit? })`: input string/number Indonesia → string desimal ternormalisasi.
+- `angkaDesimalOpsional(opsi)`: seperti di atas; kosong → `null`.
+
+**`@/lib/filter`**
+
+- `bacaStatus(value): 'aktif' | 'nonaktif' | 'semua'` dan `aktifDariStatus(status): boolean | undefined` untuk data master.
+
+**Komponen bersama**
+
+- `@/components/input-rupiah`: `InputRupiah`, input integer rupiah terformat dengan nilai `number | null`.
 
 **Lainnya**
 
