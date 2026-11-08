@@ -27,6 +27,8 @@ dan `biaya_tambahan`.
 | hppUntukSnapshot | mengembalikan HPP dengan 2 desimal; array kosong → Map kosong |
 | ubahHargaJual | ubah harga jual dengan audit; id tidak ada ditolak; kasir ditolak; harga negatif ditolak |
 | query count | maksimal 5 query untuk konteks HPP semua produk |
+| Halaman /produk | menampilkan kartu produk dengan HPP, margin %, dan badge status; filter kategori, dijual, dan margin di bawah target |
+| Halaman /produk/[id] | menampilkan rincian HPP per peran, tabel komponen, kartu margin, saran harga dengan tombol "Pakai harga ini", dan tab Ringkasan/Stok/Riwayat produksi |
 
 ## Catatan
 
@@ -34,3 +36,4 @@ dan `biaya_tambahan`.
 - `hitungMargin` dan `saranHarga` dari `@/lib/hpp/margin` dipakai untuk margin dan saran harga jual.
 - `ubahHargaJual` mengunci produk dengan `FOR UPDATE`, mencatat audit bila harga berubah, dan hanya bisa dipanggil pemilik.
 - Target margin default dari `pengaturan_toko.target_margin_default` bila produk tidak punya target sendiri.
+- Filter daftar produk memakai URL search params (`q`, `kategori`, `dijual`, `margin`) agar dapat dibagikan sebagai link.

@@ -6,6 +6,7 @@ import { db } from '@/db/client';
 import { bahan, konversiSatuan, produk, produkKomponen, resepAdonan } from '@/db/schema';
 import { D } from '@/lib/angka';
 import { ambilBiayaResep, pilihanBahan as pilihanBahanResep } from '@/features/resep/queries';
+import { hppSemuaProduk } from '@/features/hpp/queries';
 
 export type KomponenProdukTampil = {
   id: string;
@@ -48,6 +49,12 @@ export type BarisProduk = {
   fotoUrl: string | null;
   dijual: boolean;
   aktif: boolean;
+  hpp: string;
+  marginRp: string;
+  marginPersen: string;
+  target: string;
+  diBawahTarget: boolean;
+  saranHarga: number;
 };
 
 export async function daftarProduk({
@@ -55,11 +62,13 @@ export async function daftarProduk({
   kategori,
   dijual,
   aktif,
+  marginDiBawahTarget,
 }: {
   q?: string;
   kategori?: string;
   dijual?: boolean;
   aktif?: boolean;
+  marginDiBawahTarget?: boolean;
 }): Promise<BarisProduk[]> {
   const syarat = [];
   if (q) syarat.push(sql`lower(${produk.nama}) LIKE ${'%' + q.toLowerCase() + '%'}`);
@@ -83,11 +92,31 @@ export async function daftarProduk({
     .where(syarat.length ? sql.join(syarat, sql` AND `) : undefined)
     .orderBy(asc(sql`lower(${produk.nama})`), asc(produk.id));
 
-  return data.map((item) => ({
-    ...item,
-    hargaJual: Number(item.hargaJual),
-    stok: Number(item.stok),
-  }));
+  if (data.length === 0) return [];
+
+  const hpp = await hppSemuaProduk(db, {
+    produkIds: data.map((item) => item.id),
+  });
+
+  const hasil = data.map((item) => {
+    const ringkasan = hpp.get(item.id);
+    return {
+      ...item,
+      hargaJual: Number(item.hargaJual),
+      stok: Number(item.stok),
+      hpp: ringkasan?.hpp.toString() ?? '0',
+      marginRp: ringkasan?.marginRp.toString() ?? '0',
+      marginPersen: ringkasan?.marginPersen?.toFixed(4) ?? '0',
+      target: ringkasan?.target.toFixed(4) ?? '0.3000',
+      diBawahTarget: ringkasan?.diBawahTarget ?? false,
+      saranHarga: ringkasan?.saranHarga ?? 0,
+    };
+  });
+
+  if (marginDiBawahTarget) {
+    return hasil.filter((item) => item.diBawahTarget);
+  }
+  return hasil;
 }
 
 export async function detailProduk(id: string): Promise<DetailProduk | null> {
