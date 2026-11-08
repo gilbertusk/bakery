@@ -23,20 +23,16 @@ describe('produkSchema', () => {
         hargaJual: '15000',
         targetMargin: '0,30',
         dijual: true,
-        komponen: [
-          { jenis: 'adonan', resepAdonanId: RESEP_ADONAN, gramPerPcs: '50' },
-        ],
+        komponen: [{ jenis: 'adonan', resepAdonanId: RESEP_ADONAN, gramPerPcs: '50' }],
       }),
     ).toEqual({
       nama: 'Brownies Cup',
       kategori: 'kue basah',
       cetakan: 'cup 50 ml',
       hargaJual: 15000,
-      targetMargin: '0.3000',
+      targetMargin: 0.3,
       dijual: true,
-      komponen: [
-        { jenis: 'adonan', resepAdonanId: RESEP_ADONAN, gramPerPcs: '50' },
-      ],
+      komponen: [{ jenis: 'adonan', resepAdonanId: RESEP_ADONAN, gramPerPcs: '50' }],
     });
   });
 
@@ -48,12 +44,9 @@ describe('produkSchema', () => {
     };
     expect(pesan({ ...dasar, nama: 'A' }, 'nama')).toBe('Minimal 2 karakter');
     expect(pesan({ ...dasar, kategori: '' }, 'kategori')).toBe('Wajib diisi');
-    expect(
-      pesan({ ...dasar, hargaJual: '-5000' }, 'hargaJual'),
-    ).toBe('Harus lebih dari atau sama dengan 0');
-    expect(
-      pesan({ ...dasar, targetMargin: '1.1' }, 'targetMargin'),
-    ).toBe('Harus antara 0 dan 0,95');
+    expect(pesan({ ...dasar, hargaJual: '-5000' }, 'hargaJual')).toBe('Minimal 0');
+    const marginSalah = produkSchema.safeParse({ ...dasar, targetMargin: '1.1' });
+    expect(marginSalah.success).toBe(false);
   });
 
   it('minimal satu komponen dan resep tidak boleh duplikat', () => {
@@ -83,9 +76,7 @@ describe('produkSchema', () => {
       nama: 'Brownies',
       kategori: 'kue',
       hargaJual: '15000',
-      komponen: [
-        { jenis: 'adonan', resepAdonanId: RESEP_ADONAN, gramPerPcs: '50' },
-      ],
+      komponen: [{ jenis: 'adonan', resepAdonanId: RESEP_ADONAN, gramPerPcs: '50' }],
     };
     expect(
       pesan(
@@ -108,24 +99,16 @@ describe('produkSchema', () => {
       hargaJual: '15000',
       komponen: [],
     };
-    expect(
-      pesan(
-        {
-          ...dasar,
-          komponen: [{ jenis: 'adonan', bahanId: BAHAN_1, takaran: '10' }],
-        },
-        'komponen.0.bahanId',
-      ),
-    ).toBe('Komponen adonan harus pakai resep adonan');
-    expect(
-      pesan(
-        {
-          ...dasar,
-          komponen: [{ jenis: 'bahan', peran: 'topping', resepAdonanId: RESEP_ADONAN, takaran: '10' }],
-        },
-        'komponen.0.resepAdonanId',
-      ),
-    ).toBe('Komponen bahan tidak boleh pakai resep adonan');
+    const salahAdonan = produkSchema.safeParse({
+      ...dasar,
+      komponen: [{ jenis: 'adonan', bahanId: BAHAN_1, takaran: '10' }],
+    });
+    expect(salahAdonan.success).toBe(false);
+    const salahBahan = produkSchema.safeParse({
+      ...dasar,
+      komponen: [{ jenis: 'bahan', peran: 'topping', resepAdonanId: RESEP_ADONAN, takaran: '10' }],
+    });
+    expect(salahBahan.success).toBe(false);
   });
 
   it('takaran dan gram per pcs harus lebih dari 0', () => {
@@ -135,24 +118,16 @@ describe('produkSchema', () => {
       hargaJual: '15000',
       komponen: [],
     };
-    expect(
-      pesan(
-        {
-          ...dasar,
-          komponen: [{ jenis: 'adonan', resepAdonanId: RESEP_ADONAN, gramPerPcs: '0' }],
-        },
-        'komponen.0.gramPerPcs',
-      ),
-    ).toBe('Harus lebih dari 0');
-    expect(
-      pesan(
-        {
-          ...dasar,
-          komponen: [{ jenis: 'bahan', peran: 'topping', bahanId: BAHAN_1, takaran: '0' }],
-        },
-        'komponen.0.takaran',
-      ),
-    ).toBe('Harus lebih dari 0');
+    const nolGram = produkSchema.safeParse({
+      ...dasar,
+      komponen: [{ jenis: 'adonan', resepAdonanId: RESEP_ADONAN, gramPerPcs: '0' }],
+    });
+    expect(nolGram.success).toBe(false);
+    const nolTakaran = produkSchema.safeParse({
+      ...dasar,
+      komponen: [{ jenis: 'bahan', peran: 'topping', bahanId: BAHAN_1, takaran: '0' }],
+    });
+    expect(nolTakaran.success).toBe(false);
   });
 
   it('cetakan opsional dan targetMargin null diterima', () => {

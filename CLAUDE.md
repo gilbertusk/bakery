@@ -244,6 +244,11 @@ Pakai fungsi ini, jangan membuat ulang. `Tx` = transaksi Drizzle (`db.transactio
 - `@/features/resep/actions`:
   - `duplikatResep({ resepId, namaBaru })`: salin resep dan seluruh item dalam transaksi; `induk_resep_id` menunjuk resep yang diduplikat.
   - `simpanLoyangResep({ resepId, loyang })`: simpan loyang acuan dari kalkulator skala; khusus pemilik.
+- `@/features/produk`:
+  - `simpanProduk(data)`: simpan/ubah produk dan komponen dalam satu transaksi, hitung `takaran_dasar` di server, catat audit bila harga jual berubah.
+  - `setAktifProduk({ id, aktif })` dan `setDijualProduk({ id, dijual })`: ubah status produk.
+  - `unggahFotoProduk({ id, file })`: validasi tipe dan ukuran di server, upload ke bucket `produk`, hapus foto lama.
+  - `daftarProduk({ q, kategori, dijual, aktif })`, `detailProduk(id)`, `pilihanResep()`: query tampilan produk.
 - `@/features/bahan/saran-konversi`: `saranKonversiUntuk({ nama, kategori, satuanDasar })`, menyaring `KONVERSI_UMUM`; hasil adalah perkiraan yang perlu dicek dengan timbangan.
 
 **Lainnya**

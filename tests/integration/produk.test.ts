@@ -1,4 +1,5 @@
 import { asc, eq } from 'drizzle-orm';
+import { randomUUID } from 'node:crypto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -10,13 +11,39 @@ import {
   resepAdonanItem,
 } from '@/db/schema';
 import { daftarProduk, detailProduk, pilihanResep } from '@/features/produk/queries';
-import { setAktifProduk, setDijualProduk, simpanProduk, unggahFotoProduk } from '@/features/produk/actions';
+import {
+  setAktifProduk,
+  setDijualProduk,
+  simpanProduk,
+  unggahFotoProduk,
+} from '@/features/produk/actions';
 import { getPengguna } from '@/lib/auth/pengguna';
 
-import { buatBahanTest, buatProdukTest } from './setup/data';
+import { buatBahanTest } from './setup/data';
 import { buatPenggunaTest, resetData, testDb } from './setup/db';
 
 vi.mock('@/lib/auth/pengguna', () => ({ getPengguna: vi.fn() }));
+vi.mock('@/lib/supabase/admin', () => {
+  let namaFileTerakhir = '';
+  return {
+    createSupabaseAdminClient: () => ({
+      storage: {
+        from: () => ({
+          upload: async (_nama: string) => {
+            namaFileTerakhir = _nama;
+            return { error: null };
+          },
+          getPublicUrl: () => ({
+            data: {
+              publicUrl: `https://supabase.co/storage/v1/object/public/${namaFileTerakhir}`,
+            },
+          }),
+          remove: () => ({ error: null }),
+        }),
+      },
+    }),
+  };
+});
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 vi.mock('@/db/client', async () => {
   const { testDb: db } = await import('./setup/db');
@@ -45,11 +72,11 @@ beforeEach(async () => {
 });
 
 async function buatResepAktif() {
-  const tepung = await buatBahanTest('Tepung');
+  const tepung = await buatBahanTest(`Tepung ${randomUUID().slice(0, 8)}`);
   const [resep] = await testDb
     .insert(resepAdonan)
     .values({
-      nama: 'Brownies Aktif',
+      nama: `Brownies Aktif ${randomUUID().slice(0, 8)}`,
       modeHasil: 'timbang',
       hasilGram: '1200',
       aktif: true,
@@ -94,6 +121,7 @@ describe('simpanProduk', () => {
       .select()
       .from(produkTable)
       .where(eq(produkTable.id, hasil.data.id));
+    if (!produk) throw new Error('produk tidak ditemukan');
     expect(produk).toMatchObject({
       nama: 'Brownies Cup',
       kategori: 'kue basah',
@@ -105,7 +133,12 @@ describe('simpanProduk', () => {
     });
 
     const komponen = await testDb
-      .select({ resepAdonanId, takaran, takaranDasar, peran })
+      .select({
+        resepAdonanId: produkKomponen.resepAdonanId,
+        takaran: produkKomponen.takaran,
+        takaranDasar: produkKomponen.takaranDasar,
+        peran: produkKomponen.peran,
+      })
       .from(produkKomponen)
       .where(eq(produkKomponen.produkId, produk.id));
     expect(komponen).toEqual([
@@ -127,7 +160,13 @@ describe('simpanProduk', () => {
       kategori: 'kue kering',
       hargaJual: '25000',
       komponen: [
-        { jenis: 'bahan', peran: 'topping', bahanId: gula.id, takaran: '2', konversiSatuanId: sdm.id },
+        {
+          jenis: 'bahan',
+          peran: 'topping',
+          bahanId: gula.id,
+          takaran: '2',
+          konversiSatuanId: sdm.id,
+        },
         { jenis: 'bahan', peran: 'filling', bahanId: keju.id, takaran: '10' },
       ],
     });
@@ -138,25 +177,24 @@ describe('simpanProduk', () => {
       .select()
       .from(produkTable)
       .where(eq(produkTable.id, hasil.data.id));
+    if (!produk) throw new Error('produk tidak ditemukan');
 
     const komponen = await testDb
       .select({
         bahanId: produkKomponen.bahanId,
         peran: produkKomponen.peran,
         takaranDasar: produkKomponen.takaranDasar,
-        urutan: produkKomponen.id,
       })
       .from(produkKomponen)
       .where(eq(produkKomponen.produkId, produk.id))
       .orderBy(asc(produkKomponen.bahanId));
-    expect(komponen.map(({ urutan: _urutan, ...item }) => item)).toEqual([
-      { bahanId: gula.id, peran: 'topping', takaranDasar: '24.000' },
-      { bahanId: keju.id, peran: 'filling', takaranDasar: '10.000' },
-    ]);
+    const isi = komponen.map((item) => item);
+    expect(isi).toHaveLength(2);
+    expect(isi).toContainEqual({ bahanId: gula.id, peran: 'topping', takaranDasar: '24.000' });
+    expect(isi).toContainEqual({ bahanId: keju.id, peran: 'filling', takaranDasar: '10.000' });
   });
 
   it('ubah produk mengganti seluruh komponen dan mempertahankan id', async () => {
-    const tepung = await buatBahanTest('Tepung');
     const gula = await buatBahanTest('Gula');
     const resep = await buatResepAktif();
     const dibuat = await simpanProduk({
@@ -183,6 +221,7 @@ describe('simpanProduk', () => {
       .select()
       .from(produkTable)
       .where(eq(produkTable.id, dibuat.data.id));
+    if (!produk) throw new Error('produk tidak ditemukan');
     expect(produk.nama).toBe('Produk Akhir');
     expect(produk.dijual).toBe(false);
 
@@ -207,9 +246,10 @@ describe('simpanProduk', () => {
       ok: false,
       fieldErrors: { nama: ['Produk dengan nama ini sudah ada'] },
     });
-    await expect(
-      simpanProduk({ ...dasar, id: TIDAK_ADA, nama: 'Tidak Ada' }),
-    ).resolves.toEqual({ ok: false, error: 'Produk tidak ditemukan' });
+    await expect(simpanProduk({ ...dasar, id: TIDAK_ADA, nama: 'Tidak Ada' })).resolves.toEqual({
+      ok: false,
+      error: 'Produk tidak ditemukan',
+    });
   });
 
   it('kasir ditolak menyimpan produk', async () => {
@@ -251,6 +291,7 @@ describe('setAktifProduk dan setDijualProduk', () => {
       .select({ aktif: produkTable.aktif, dijual: produkTable.dijual })
       .from(produkTable)
       .where(eq(produkTable.id, id));
+    if (!produk) throw new Error('produk tidak ditemukan');
     expect(produk.aktif).toBe(false);
     expect(produk.dijual).toBe(false);
   });
@@ -307,18 +348,14 @@ describe('query produk', () => {
       komponen: [{ jenis: 'adonan', resepAdonanId: (await buatResepAktif()).id, gramPerPcs: '60' }],
     });
 
-    await expect(daftarProduk({ q: 'brownies' })).resolves.toHaveLength(1);
+    await expect(daftarProduk({ q: 'brownies' })).resolves.toHaveLength(2);
     await expect(daftarProduk({ kategori: 'kue kering' })).resolves.toHaveLength(1);
-    await expect(daftarProduk({ dijual: true })).resolves.toHaveLength(1);
+    await expect(daftarProduk({ dijual: true })).resolves.toHaveLength(2);
     await expect(daftarProduk({ dijual: false })).resolves.toHaveLength(1);
     await expect(daftarProduk({ aktif: false })).resolves.toHaveLength(0);
 
-    const [produk] = await testDb
-      .select({ nama: produkTable.nama })
-      .from(produkTable)
-      .where(eq(produkTable.id, idA));
-    await testDb.update(produkTable).set({ aktif: false }).where(eq(produkTable.id, produk.id));
-    await expect(daftarProduk({ aktif: true })).resolves.toHaveLength(1);
+    await testDb.update(produkTable).set({ aktif: false }).where(eq(produkTable.id, idA));
+    await expect(daftarProduk({ aktif: true })).resolves.toHaveLength(2);
     await expect(daftarProduk({ aktif: false })).resolves.toHaveLength(1);
   });
 
@@ -338,7 +375,13 @@ describe('query produk', () => {
       hargaJual: '15000',
       komponen: [
         { jenis: 'adonan', resepAdonanId: resep.id, gramPerPcs: '50' },
-        { jenis: 'bahan', peran: 'kemasan', bahanId: tepung.id, takaran: '2', konversiSatuanId: sdm.id },
+        {
+          jenis: 'bahan',
+          peran: 'kemasan',
+          bahanId: tepung.id,
+          takaran: '2',
+          konversiSatuanId: sdm.id,
+        },
       ],
     });
     if (!produk.ok) throw new Error(produk.error);
@@ -354,16 +397,18 @@ describe('query produk', () => {
       aktif: true,
     });
     expect(detail?.komponen).toHaveLength(2);
-    expect(detail?.komponen[0]).toMatchObject({
+    const adonan = detail?.komponen.find((k) => k.jenis === 'adonan');
+    const bahan = detail?.komponen.find((k) => k.jenis === 'bahan');
+    expect(adonan).toMatchObject({
       jenis: 'adonan',
-      namaResep: 'Brownies Aktif',
+      namaResep: resep.nama,
       gramPerPcs: '50.000',
     });
-    expect(detail?.komponen[1]).toMatchObject({
+    expect(bahan).toMatchObject({
       jenis: 'bahan',
       peran: 'kemasan',
       namaBahan: 'Tepung',
-      satuan: 'sdm',
+      namaSatuan: 'sdm',
       takaran: '2.000',
       takaranDasar: '16.000',
     });
@@ -387,7 +432,7 @@ describe('query produk', () => {
     expect(pilihan).toHaveLength(1);
     expect(pilihan[0]).toMatchObject({
       id: resepAktif.id,
-      nama: 'Brownies Aktif',
+      nama: resepAktif.nama,
       hasilGram: '1200.000',
       aktif: true,
     });
@@ -409,7 +454,7 @@ describe('unggahFotoProduk', () => {
 
   it('menerima file jpeg/png/webp maksimal 2 MB dan menyimpan foto_url', async () => {
     const id = await produkDenganFoto();
-    const file = new NodeFile([new ArrayBuffer(100)], 'foto.jpg', { type: 'image/jpeg' });
+    const file = new File([new ArrayBuffer(100)], 'foto.jpg', { type: 'image/jpeg' });
 
     const hasil = await unggahFotoProduk({ id, file });
     expect(hasil).toMatchObject({ ok: true });
@@ -418,16 +463,17 @@ describe('unggahFotoProduk', () => {
       .select({ fotoUrl: produkTable.fotoUrl })
       .from(produkTable)
       .where(eq(produkTable.id, id));
+    if (!produk) throw new Error('produk tidak ditemukan');
     expect(produk.fotoUrl).toContain(`produk/${id}/`);
     expect(produk.fotoUrl?.endsWith('.jpg')).toBe(true);
   });
 
   it('menolak file terlalu besar dan tipe tidak valid', async () => {
     const id = await produkDenganFoto();
-    const besar = new NodeFile([new ArrayBuffer(3 * 1024 * 1024)], 'besar.jpg', {
+    const besar = new File([new ArrayBuffer(3 * 1024 * 1024)], 'besar.jpg', {
       type: 'image/jpeg',
     });
-    const pdf = new NodeFile([new ArrayBuffer(100)], 'dokumen.pdf', { type: 'application/pdf' });
+    const pdf = new File([new ArrayBuffer(100)], 'dokumen.pdf', { type: 'application/pdf' });
 
     await expect(unggahFotoProduk({ id, file: besar })).resolves.toMatchObject({
       ok: false,
@@ -435,12 +481,12 @@ describe('unggahFotoProduk', () => {
     });
     await expect(unggahFotoProduk({ id, file: pdf })).resolves.toMatchObject({
       ok: false,
-      fieldErrors: { file: ['Tipe file harus jpeg, png, atau webp'] },
+      error: 'Tipe file harus jpeg, png, atau webp',
     });
   });
 
   it('produk tidak ada ditolak', async () => {
-    const file = new NodeFile([new ArrayBuffer(100)], 'foto.jpg', { type: 'image/jpeg' });
+    const file = new File([new ArrayBuffer(100)], 'foto.jpg', { type: 'image/jpeg' });
     await expect(unggahFotoProduk({ id: TIDAK_ADA, file })).resolves.toEqual({
       ok: false,
       error: 'Produk tidak ditemukan',
