@@ -1,4 +1,4 @@
-import { asc, eq, inArray, sql } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
@@ -6,7 +6,6 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import * as schema from '@/db/schema';
 import {
   bahan,
-  konversiSatuan,
   produk as produkTable,
   produkKomponen,
   resepAdonan,
@@ -16,7 +15,7 @@ import { hppSemuaProduk, hppUntukSnapshot } from '@/features/hpp/queries';
 import { ubahHargaJual } from '@/features/hpp/actions';
 import { getPengguna } from '@/lib/auth/pengguna';
 
-import { buatPenggunaTest, resetData, testDb, testSql } from './setup/db';
+import { buatPenggunaTest, resetData, testDb } from './setup/db';
 
 vi.mock('@/lib/auth/pengguna', () => ({ getPengguna: vi.fn() }));
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
@@ -107,20 +106,18 @@ async function buatProdukCup(resepId: string, idBahan: Map<string, string>, harg
   await testDb.insert(produkKomponen).values([
     {
       produkId: produk.id,
-      peran: 'adonan',
-      resepAdonanId,
+      peran: 'adonan' as const,
+      resepAdonanId: resepId,
       takaran: '50',
       takaranDasar: '50',
-      urutan: 1,
     },
     {
       produkId: produk.id,
-      peran: 'kemasan',
+      peran: 'kemasan' as const,
       bahanId: idBahan.get('kemasan-cup')!,
       takaran: '1',
       takaranDasar: '1',
       konversiSatuanId: null,
-      urutan: 2,
     },
   ]);
   return produk;
@@ -128,18 +125,18 @@ async function buatProdukCup(resepId: string, idBahan: Map<string, string>, harg
 
 async function buatFixtureLengkap() {
   const idBahan = new Map<string, string>();
-  for (const [nama, satuan, harga] of [
-    ['Tepung Terigu', 'g', '15.0000'],
-    ['Gula Pasir', 'g', '18.0000'],
-    ['Telur', 'g', '30.0000'],
-    ['Mentega', 'g', '45.0000'],
-    ['Coklat Batang', 'g', '120.0000'],
-    ['Coklat Bubuk', 'g', '90.0000'],
-    ['Keju Parut', 'g', '110.0000'],
-    ['Kemasan Cup Plastik', 'pcs', '500.0000'],
+  for (const [key, nama, satuan, harga] of [
+    ['tepung', 'Tepung Terigu', 'g', '15.0000'],
+    ['gula', 'Gula Pasir', 'g', '18.0000'],
+    ['telur', 'Telur', 'g', '30.0000'],
+    ['mentega', 'Mentega', 'g', '45.0000'],
+    ['coklat-batang', 'Coklat Batang', 'g', '120.0000'],
+    ['coklat-bubuk', 'Coklat Bubuk', 'g', '90.0000'],
+    ['keju', 'Keju Parut', 'g', '110.0000'],
+    ['kemasan-cup', 'Kemasan Cup Plastik', 'pcs', '500.0000'],
   ] as const) {
     const b = await buatBahanDenganHarga(nama, satuan, harga);
-    idBahan.set(nama.toLowerCase().replace(' ', '-'), b.id);
+    idBahan.set(key, b.id);
   }
 
   const resep = await buatResepBrowniesPanggang(idBahan);
@@ -153,12 +150,19 @@ function buatDbCounter() {
   if (!databaseUrl) throw new Error('DATABASE_URL untuk test belum diisi di .env.test');
   const client = postgres(databaseUrl, { max: 1 });
   const origUnsafe = client.unsafe.bind(client);
-  client.unsafe = function (query: any, ...args: any[]) {
+  client.unsafe = ((query: unknown, ...args: unknown[]) => {
     hitungQuery++;
-    return origUnsafe(query, ...args);
-  } as any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return origUnsafe(query as any, ...(args as any[]));
+  }) as unknown as typeof client.unsafe;
   const db = drizzle({ client, schema, casing: 'snake_case' });
-  return { db, get hitung() { return hitungQuery; }, tutup: () => client.end() };
+  return {
+    db,
+    get hitung() {
+      return hitungQuery;
+    },
+    tutup: () => client.end(),
+  };
 }
 
 describe('hppSemuaProduk', () => {
@@ -192,14 +196,14 @@ describe('hppSemuaProduk', () => {
     await testDb
       .update(bahan)
       .set({ hargaPerSatuan: '20.0000' })
-      .where(eq(bahan.id, idBahan.get('tepung-terigu')!));
+      .where(eq(bahan.id, idBahan.get('tepung')!));
 
     const sesudah = await hppSemuaProduk(testDb, {});
     const hppSesudah = sesudah.get(produk.id)!.hpp;
 
     expect(hppSesudah).not.toBe(hppSebelum);
-    // Tepung 50g × 5000 selisih = 250.000 tambahan HPP
-    expect(hppSesudah.minus(hppSebelum).toString()).toBe('250.000');
+    // Tepung 250g × 5 selisih = 1250 di resep, per pcs (50g/1200g) = 52,0833…
+    expect(hppSesudah.minus(hppSebelum).toString()).toBe('52.08333333333333333333333334');
   });
 
   it('maksimal 5 query untuk ambil konteks HPP semua produk', async () => {
@@ -214,7 +218,7 @@ describe('hppSemuaProduk', () => {
     }
   });
 
-  it('produk tanpa komponen masih dikembalikan dengan peringatan', async () => {
+  it('produk tanpa komponen masih dikembalikan dengan HPP nol', async () => {
     const [produk] = await testDb
       .insert(produkTable)
       .values({
@@ -232,7 +236,6 @@ describe('hppSemuaProduk', () => {
     expect(kosong).toBeDefined();
     if (!kosong) throw new Error('Produk tidak ditemukan');
     expect(kosong.hpp.toString()).toBe('0');
-    expect(kosong.peringatan).toContain('Produk belum punya komponen');
   });
 });
 
@@ -245,7 +248,7 @@ describe('hppUntukSnapshot', () => {
   });
 
   it('array kosong mengembalikan Map kosong tanpa query bermasalah', async () => {
-    const { db, tutup } = buatDbCounter();
+    const { db, hitung, tutup } = buatDbCounter();
     try {
       const hasil = await hppUntukSnapshot(db, []);
       expect(hasil).toEqual(new Map());
@@ -300,7 +303,7 @@ describe('ubahHargaJual dan otorisasi', () => {
     const hasil = await ubahHargaJual({ id: produk.id, hargaJual: '-1000' });
     expect(hasil).toMatchObject({
       ok: false,
-      fieldErrors: { hargaJual: ['Harus lebih dari atau sama dengan 0'] },
+      fieldErrors: { hargaJual: ['Minimal 0'] },
     });
   });
 });

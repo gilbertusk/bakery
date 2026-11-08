@@ -249,6 +249,12 @@ Pakai fungsi ini, jangan membuat ulang. `Tx` = transaksi Drizzle (`db.transactio
   - `setAktifProduk({ id, aktif })` dan `setDijualProduk({ id, dijual })`: ubah status produk.
   - `unggahFotoProduk({ id, file })`: validasi tipe dan ukuran di server, upload ke bucket `produk`, hapus foto lama.
   - `daftarProduk({ q, kategori, dijual, aktif })`, `detailProduk(id)`, `pilihanResep()`: query tampilan produk.
+- `@/features/hpp`:
+  - `ambilKonteksHpp(klien, { produkIds }): KonteksHpp`: muat data mentah HPP dalam ≤ 5 query, tanpa N+1.
+  - `hitungHppProdukDariKonteks(konteks, produkId): RincianHpp | null`: hitung HPP satu produk dari konteks.
+  - `hppSemuaProduk(klien, { produkIds }): Map<produkId, { hpp, marginRp, marginPersen, target, diBawahTarget, saranHarga }>`: ringkasan HPP + margin semua produk.
+  - `hppUntukSnapshot(klien, produkIds): Map<produkId, string>`: HPP 2 desimal untuk snapshot transaksi.
+  - `ubahHargaJual({ id, hargaJual })`: ubah harga jual produk dengan audit, hanya pemilik.
 - `@/features/bahan/saran-konversi`: `saranKonversiUntuk({ nama, kategori, satuanDasar })`, menyaring `KONVERSI_UMUM`; hasil adalah perkiraan yang perlu dicek dengan timbangan.
 
 **Lainnya**
