@@ -1,12 +1,11 @@
-import { ArrowLeft, Printer, Tag } from 'lucide-react';
+import { ArrowLeft, Cake, Pencil, Printer, Tag, TriangleAlert } from 'lucide-react';
 import type { Metadata } from 'next';
+import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 import { z } from 'zod';
-import { toast } from 'sonner';
 
-import { db } from '@/db/client';
 import { EmptyState } from '@/components/empty-state';
 import { LoadingSkeleton } from '@/components/loading-skeleton';
 import { PageHeader } from '@/components/page-header';
@@ -14,12 +13,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { peranUntuk } from '@/config/navigasi';
+import { db } from '@/db/client';
 import { hppSemuaProduk } from '@/features/hpp/queries';
-import { ubahHargaJual } from '@/features/hpp/actions';
+import { TombolHargaSaran } from '@/features/produk/components/tombol-harga-saran';
 import { detailProduk } from '@/features/produk/queries';
 import { requirePeran } from '@/lib/auth';
 import { formatAngka, formatRupiah } from '@/lib/format';
-import { ConfirmDialog } from '@/components/confirm-dialog';
 
 export const metadata: Metadata = { title: 'Detail produk' };
 
@@ -53,17 +52,15 @@ async function IsiDetailProduk(props: { params: Promise<{ id: string }> }) {
   const statusLabel =
     status === 'merah' ? 'Rugi' : status === 'kuning' ? 'Di bawah target' : 'Di atas target';
 
-  async function pakaiHargaSaran() {
-    const hasil = await ubahHargaJual({
-      id,
-      hargaJual: String(ringkasanProduk.saranHarga),
-    });
-    if (!hasil.ok) {
-      toast.error(hasil.error);
-      return;
-    }
-    toast.success(`Harga jual diperbarui menjadi ${formatRupiah(ringkasanProduk.saranHarga)}`);
-  }
+  const rincian = ringkasanProduk.rincian;
+  const peran = [
+    ['adonan', 'Adonan', rincian.perPeran.adonan],
+    ['topping', 'Topping', rincian.perPeran.topping],
+    ['filling', 'Filling', rincian.perPeran.filling],
+    ['kemasan', 'Kemasan', rincian.perPeran.kemasan],
+    ['lainnya', 'Lainnya', rincian.perPeran.lainnya],
+    ['overhead', 'Overhead', rincian.overhead.total],
+  ] as const;
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
@@ -78,22 +75,39 @@ async function IsiDetailProduk(props: { params: Promise<{ id: string }> }) {
       <PageHeader
         judul={produk.nama}
         deskripsi={
-          <>
-            {produk.cetakan ? <span>{produk.cetakan} · </span> : null}
+          <span className="flex flex-wrap items-center gap-2">
+            {produk.cetakan ? <span>{produk.cetakan}</span> : null}
+            <span className="text-foreground font-medium">{formatRupiah(produk.hargaJual)}</span>
             <Badge variant={produk.dijual ? 'secondary' : 'outline'}>
               {produk.dijual ? 'Dijual' : 'Tidak dijual'}
             </Badge>
             {produk.aktif ? null : <Badge variant="secondary">Nonaktif</Badge>}
-          </>
+          </span>
         }
         aksi={
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              className="h-11"
+              nativeButton={false}
+              render={<Link href={`/produk/${id}/ubah`} />}
+            >
+              <Pencil /> Ubah
+            </Button>
             <Button variant="outline" className="h-11" disabled>
               <Printer /> Cetak etiket
             </Button>
           </div>
         }
       />
+
+      <div className="bg-muted relative flex aspect-[16/7] max-h-72 w-full items-center justify-center overflow-hidden rounded-xl border">
+        {produk.fotoUrl ? (
+          <Image src={produk.fotoUrl} alt={produk.nama} fill unoptimized className="object-cover" />
+        ) : (
+          <Cake className="text-muted-foreground size-16" aria-hidden />
+        )}
+      </div>
 
       {/* Kartu HPP */}
       <section className="flex flex-col gap-4 rounded-xl border p-4 sm:p-6">
@@ -111,17 +125,39 @@ async function IsiDetailProduk(props: { params: Promise<{ id: string }> }) {
             <p className="text-muted-foreground text-xs">Total HPP per pcs</p>
           </div>
         </div>
-        <dl className="mt-3 grid grid-cols-4 gap-2 border-t pt-2">
-          <dt className="text-muted-foreground text-sm">Total</dt>
-          <dd className="text-right font-medium tabular-nums">
+        <div className="flex flex-col gap-3">
+          {peran.map(([key, label, nilai]) => {
+            const proporsi = ringkasanProduk.hpp.gt(0)
+              ? Math.min(100, Math.max(0, nilai.div(ringkasanProduk.hpp).times(100).toNumber()))
+              : 0;
+            return (
+              <div
+                key={key}
+                className="grid grid-cols-[5rem_minmax(0,1fr)_6.5rem] items-center gap-3 text-sm"
+              >
+                <span className="text-muted-foreground">{label}</span>
+                <div className="bg-secondary h-2 overflow-hidden rounded-full">
+                  <div
+                    className="bg-primary h-full rounded-full"
+                    style={{ width: `${proporsi}%` }}
+                  />
+                </div>
+                <span className="text-right font-medium tabular-nums">{formatRupiah(nilai)}</span>
+              </div>
+            );
+          })}
+        </div>
+        <dl className="grid grid-cols-2 gap-2 border-t pt-3">
+          <dt className="font-medium">Total HPP</dt>
+          <dd className="text-right font-semibold tabular-nums">
             {formatRupiah(ringkasanProduk.hpp)}
           </dd>
         </dl>
-        {ringkasanProduk.diBawahTarget ? (
-          <p className="text-destructive mt-2 text-sm">
-            HPP di atas target margin untuk harga jual saat ini.
+        {rincian.peringatan.map((peringatan) => (
+          <p key={peringatan} className="flex gap-2 text-sm text-amber-800 dark:text-amber-200">
+            <TriangleAlert className="mt-0.5 size-4 shrink-0" /> {peringatan}
           </p>
-        ) : null}
+        ))}
       </section>
 
       {/* Kartu Margin */}
@@ -169,16 +205,11 @@ async function IsiDetailProduk(props: { params: Promise<{ id: string }> }) {
                 {formatRupiah(ringkasanProduk.saranHarga)}
               </p>
             </div>
-            <ConfirmDialog
-              judul={`Perbarui harga jual ${produk.nama}?`}
-              deskripsi={`Harga jual akan berubah dari ${formatRupiah(produk.hargaJual)} menjadi ${formatRupiah(ringkasanProduk.saranHarga)}.`}
-              labelKonfirmasi="Pakai harga saran"
-              onKonfirmasi={pakaiHargaSaran}
-              pemicu={
-                <Button className="h-11 sm:self-start">
-                  <Tag /> Pakai harga ini
-                </Button>
-              }
+            <TombolHargaSaran
+              id={id}
+              nama={produk.nama}
+              hargaLama={produk.hargaJual}
+              hargaSaran={ringkasanProduk.saranHarga}
             />
           </div>
         ) : null}
@@ -229,7 +260,7 @@ async function IsiDetailProduk(props: { params: Promise<{ id: string }> }) {
       </section>
 
       {/* Tab: Ringkasan | Stok | Riwayat produksi */}
-      <Tabs value="ringkasan" defaultValue="ringkasan" className="w-full">
+      <Tabs defaultValue="ringkasan" className="w-full">
         <TabsList>
           <TabsTrigger value="ringkasan">Ringkasan</TabsTrigger>
           <TabsTrigger value="stok">Kartu Stok</TabsTrigger>
@@ -244,10 +275,9 @@ async function IsiDetailProduk(props: { params: Promise<{ id: string }> }) {
               </p>
             ) : null}
             <p className="text-sm">
-              1 resep ≈{' '}
-              {produk.komponen.find((k) => k.jenis === 'adonan')?.gramPerPcs
-                ? 'hitung dari gram per pcs'
-                : '—'}
+              {rincian.adonanUtama
+                ? `1 resep ${produk.komponen.find((item) => item.resepAdonanId === rincian.adonanUtama?.resepId)?.namaResep ?? 'adonan utama'} ≈ ${rincian.adonanUtama.pcsPerResep} pcs`
+                : 'Produk ini tidak memakai adonan utama.'}
             </p>
           </div>
         </TabsContent>

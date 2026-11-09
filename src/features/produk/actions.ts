@@ -2,6 +2,7 @@
 
 import { and, eq, inArray, ne, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
 
 import { type Tx, db } from '@/db/client';
 import { bahan, konversiSatuan, produk, produkKomponen } from '@/db/schema';
@@ -23,6 +24,22 @@ const PESAN_TIDAK_ADA = 'Produk tidak ditemukan';
 const PESAN_DUPLIKAT = 'Produk dengan nama ini sudah ada';
 const UKURAN_MAKSIMAL = 2 * 1024 * 1024;
 const TIPE_VALID = ['image/jpeg', 'image/png', 'image/webp'];
+const EKSTENSI_FOTO: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+};
+
+const unggahFotoProdukSchema = z.preprocess(
+  (input) => {
+    if (!(input instanceof FormData)) return input;
+    return { id: input.get('id'), file: input.get('file') };
+  },
+  z.object({
+    id: z.uuid(),
+    file: z.custom<File>((nilai) => nilai instanceof File, 'Pilih file foto'),
+  }),
+);
 
 function segarkan(id?: string) {
   revalidatePath('/produk');
@@ -213,55 +230,47 @@ export const setDijualProduk = aksi({
   },
 });
 
-export async function unggahFotoProduk(input: {
-  id: string;
-  file: File;
-}): Promise<{ ok: true; data: { fotoUrl: string } } | { ok: false; error: string }> {
-  const { id, file } = input;
-
-  if (!TIPE_VALID.includes(file.type)) {
-    return {
-      ok: false,
-      error: 'Tipe file harus jpeg, png, atau webp',
-    };
-  }
-  if (file.size > UKURAN_MAKSIMAL) {
-    return { ok: false, error: 'Ukuran file maksimal 2 MB' };
-  }
-
-  const [lama] = await db
-    .select({ fotoUrl: produk.fotoUrl })
-    .from(produk)
-    .where(eq(produk.id, id))
-    .limit(1);
-  if (!lama) return { ok: false, error: 'Produk tidak ditemukan' };
-
-  const ekstensi = String(file.name.split('.').pop() ?? 'jpg');
-  const namaFile = `produk/${id}/${crypto.randomUUID()}.${ekstensi}`;
-  const supabase = createSupabaseAdminClient();
-  const { error: uploadError } = await supabase.storage
-    .from('produk')
-    .upload(namaFile, file, { contentType: file.type, upsert: false });
-
-  if (uploadError) {
-    return { ok: false, error: 'Gagal mengunggah foto, coba lagi' };
-  }
-
-  const { data: urlData } = supabase.storage.from('produk').getPublicUrl(namaFile);
-
-  if (lama.fotoUrl) {
-    const pathLama = lama.fotoUrl.split('/produk/')[1]?.split('?')[0];
-    if (pathLama) {
-      await supabase.storage.from('produk').remove([pathLama]);
+export const unggahFotoProduk = aksi({
+  schema: unggahFotoProdukSchema,
+  peran: PEMILIK,
+  jalankan: async ({ id, file }) => {
+    if (!TIPE_VALID.includes(file.type)) {
+      throw new PesanError('Tipe file harus jpeg, png, atau webp');
     }
-  }
+    if (file.size > UKURAN_MAKSIMAL) {
+      throw new PesanError('Ukuran file maksimal 2 MB');
+    }
 
-  const [baris] = await db
-    .update(produk)
-    .set({ fotoUrl: urlData.publicUrl })
-    .where(eq(produk.id, id))
-    .returning({ fotoUrl: produk.fotoUrl });
+    const [lama] = await db
+      .select({ fotoUrl: produk.fotoUrl })
+      .from(produk)
+      .where(eq(produk.id, id))
+      .limit(1);
+    if (!lama) throw new PesanError(PESAN_TIDAK_ADA);
 
-  segarkan(id);
-  return { ok: true, data: { fotoUrl: baris!.fotoUrl ?? '' } };
-}
+    const ekstensi = EKSTENSI_FOTO[file.type] ?? 'jpg';
+    const namaFile = `produk/${id}/${crypto.randomUUID()}.${ekstensi}`;
+    const supabase = createSupabaseAdminClient();
+    const { error: uploadError } = await supabase.storage
+      .from('produk')
+      .upload(namaFile, file, { contentType: file.type, upsert: false });
+
+    if (uploadError) throw new PesanError('Gagal mengunggah foto, coba lagi');
+
+    const { data: urlData } = supabase.storage.from('produk').getPublicUrl(namaFile);
+
+    if (lama.fotoUrl) {
+      const pathLama = lama.fotoUrl.split('/produk/')[1]?.split('?')[0];
+      if (pathLama) await supabase.storage.from('produk').remove([pathLama]);
+    }
+
+    const [baris] = await db
+      .update(produk)
+      .set({ fotoUrl: urlData.publicUrl })
+      .where(eq(produk.id, id))
+      .returning({ fotoUrl: produk.fotoUrl });
+
+    segarkan(id);
+    return { fotoUrl: baris!.fotoUrl ?? '' };
+  },
+});

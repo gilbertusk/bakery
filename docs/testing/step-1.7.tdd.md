@@ -11,9 +11,11 @@ dan `docs/ERD.md` tabel `produk`, `produk_komponen`, serta `biaya_tambahan`.
 | --- | --- | --- |
 | RED | `vitest run --project unit src/features/produk/schemas.test.ts` | file test gagal dimuat karena modul belum ada; commit `4d7ba51` |
 | RED | `vitest run --project integration tests/integration/produk.test.ts` | file test gagal dimuat karena action/query belum ada; commit `4d7ba51` |
-| GREEN | unit target termasuk `src/lib/hpp/produk.test.ts` | 384 test lulus |
-| GREEN | integrasi produk | 154 test lulus |
-| Regresi | `pnpm test`, `pnpm test:int` | 42 file / 384 unit, 18 file / 154 integrasi lulus |
+| RED pelengkap | unit helper foto/form dan integrasi upload kasir | helper belum ada dan upload kasir masih diterima; commit `bc5a13e` |
+| GREEN | unit target termasuk helper form/foto produk | lulus |
+| GREEN | integrasi produk | lulus, termasuk upload foto ditolak untuk kasir |
+| Regresi | `pnpm test`, `pnpm test:int` | 44 file / 389 unit, 19 file / 169 integrasi lulus |
+| E2E publik | `pnpm test:e2e` | 8 test mobile/desktop lulus |
 | Coverage HPP | `vitest run --project unit src/lib/hpp --coverage --coverage.include=src/lib/hpp/**/*.ts` | statement, branch, function, dan line 100% |
 | Cek | `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm build` | Lulus |
 
@@ -33,7 +35,9 @@ dan `docs/ERD.md` tabel `produk`, `produk_komponen`, serta `biaya_tambahan`.
 | Pilihan resep | hanya resep aktif dengan biaya per gram dan hasil gram |
 | Upload foto | terima jpeg/png/webp ≤ 2 MB, simpan `foto_url`, hapus foto lama |
 | Upload foto | tolak file > 2 MB dan tipe non-gambar |
-| Otorisasi | kasir ditolak menyimpan serta mengubah status produk; data tidak berubah |
+| Otorisasi | kasir ditolak menyimpan, mengubah status, serta mengunggah foto produk; data tidak berubah |
+| Form tambah/ubah | info produk, komponen adonan/bahan dinamis, stok read-only, dan pratinjau HPP sticky tersedia |
+| Foto HP | pratinjau lokal dan kompresi WebP sisi terpanjang 1024 px sebelum upload |
 
 ## Catatan
 
@@ -41,6 +45,8 @@ dan `docs/ERD.md` tabel `produk`, `produk_komponen`, serta `biaya_tambahan`.
   dan mengganti seluruh komponen dalam satu transaksi.
 - Audit mencatat perubahan `harga_jual` ke tabel `audit_log`.
 - `unggahFotoProduk` memakai Supabase service role untuk upload ke bucket `produk`; validasi
-  tipe dan ukuran dilakukan di server sebelum upload.
+  peran, tipe, dan ukuran dilakukan di server sebelum upload.
 - Detail produk menghitung biaya per pcs dari biaya per gram resep (adonan) atau
   takaran dasar × harga per satuan (bahan langsung).
+- Route `/produk/baru` dan `/produk/[id]/ubah` memuat pilihan resep/bahan di Server Component,
+  lalu menyerahkan interaksi form ke Client Component sesuai panduan Next.js 16.4.3.

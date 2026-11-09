@@ -227,9 +227,12 @@ describe('hppSemuaProduk', () => {
 
   it('memakai target margin default toko saat produk tidak punya target', async () => {
     await testDb
-      .update(pengaturanToko)
-      .set({ targetMarginDefault: '0.4200' })
-      .where(eq(pengaturanToko.id, 1));
+      .insert(pengaturanToko)
+      .values({ id: 1, targetMarginDefault: '0.4200' })
+      .onConflictDoUpdate({
+        target: pengaturanToko.id,
+        set: { targetMarginDefault: '0.4200' },
+      });
     const [produk] = await testDb
       .insert(produkTable)
       .values({

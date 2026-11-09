@@ -3,9 +3,16 @@ import 'server-only';
 import { asc, eq, sql } from 'drizzle-orm';
 
 import { db } from '@/db/client';
-import { bahan, konversiSatuan, produk, produkKomponen, resepAdonan } from '@/db/schema';
+import {
+  bahan,
+  konversiSatuan,
+  pengaturanToko,
+  produk,
+  produkKomponen,
+  resepAdonan,
+} from '@/db/schema';
 import { D } from '@/lib/angka';
-import { ambilBiayaResep, pilihanBahan as pilihanBahanResep } from '@/features/resep/queries';
+import { ambilBiayaResep, pilihanBahan as ambilPilihanBahanResep } from '@/features/resep/queries';
 import { hppSemuaProduk } from '@/features/hpp/queries';
 
 export type KomponenProdukTampil = {
@@ -149,8 +156,8 @@ export async function detailProduk(id: string): Promise<DetailProduk | null> {
 
   const resepIds = [...new Set(baris.filter((b) => b.resepAdonanId).map((b) => b.resepAdonanId!))];
   const biayaResep = await ambilBiayaResep(db, resepIds);
-  const pilihanBahan = await pilihanBahanResep();
-  const hargaByBahanId = new Map(pilihanBahan.map((b) => [b.id, b.hargaPerSatuan]));
+  const daftarPilihanBahan = await ambilPilihanBahanResep();
+  const hargaByBahanId = new Map(daftarPilihanBahan.map((b) => [b.id, b.hargaPerSatuan]));
 
   const komponenMap = new Map<string, KomponenProdukTampil>();
   const urutan: string[] = [];
@@ -233,4 +240,19 @@ export async function pilihanResep(): Promise<
     biayaPerGram: biaya.get(item.id)?.biayaPerGram.toString() ?? '0',
     aktif: item.aktif,
   }));
+}
+
+export function pilihanBahan() {
+  return ambilPilihanBahanResep();
+}
+
+export async function pengaturanFormProduk(): Promise<{
+  targetMarginDefault: string;
+}> {
+  const [pengaturan] = await db
+    .select({ targetMarginDefault: pengaturanToko.targetMarginDefault })
+    .from(pengaturanToko)
+    .where(eq(pengaturanToko.id, 1))
+    .limit(1);
+  return { targetMarginDefault: pengaturan?.targetMarginDefault ?? '0.3000' };
 }

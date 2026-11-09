@@ -6,6 +6,7 @@ import { type Db, type Tx } from '@/db/client';
 import {
   bahan,
   biayaTambahan,
+  pengaturanToko,
   produk,
   produkKomponen,
   resepAdonan,
@@ -28,6 +29,7 @@ export type HppRingkasanProduk = {
   target: Decimal;
   diBawahTarget: boolean;
   saranHarga: number;
+  rincian: RincianHpp;
 };
 
 type KomponenKonteks =
@@ -53,7 +55,13 @@ export async function ambilKonteksHpp(
       id: produk.id,
       nama: produk.nama,
       hargaJual: produk.hargaJual,
-      targetMargin: produk.targetMargin,
+      targetMargin: sql<string>`coalesce(
+        ${produk.targetMargin},
+        (select ${pengaturanToko.targetMarginDefault}
+         from ${pengaturanToko}
+         where ${pengaturanToko.id} = 1),
+        '0.3000'
+      )`,
     })
     .from(produk)
     .where(produkIds?.length ? inArray(produk.id, produkIds) : sql`true`)
@@ -167,19 +175,19 @@ export async function ambilKonteksHpp(
         } as KomponenKonteks;
       });
 
-    const targetMargin = p.targetMargin ? D(p.targetMargin) : D('0.3000');
-
     return {
       id: p.id,
       nama: p.nama,
       hargaJual: p.hargaJual,
-      targetMargin,
+      targetMargin: D(p.targetMargin),
       komponen,
-      biayaTambahan: (biayaByProdukId.get(p.id) ?? []).map((b) => ({
-        nama: b.nama,
-        metode: b.metode as 'per_pcs' | 'persen' | 'per_batch',
-        nilai: b.nilai,
-      })),
+      biayaTambahan: [...(biayaByProdukId.get('') ?? []), ...(biayaByProdukId.get(p.id) ?? [])].map(
+        (b) => ({
+          nama: b.nama,
+          metode: b.metode as 'per_pcs' | 'persen' | 'per_batch',
+          nilai: b.nilai,
+        }),
+      ),
     };
   });
 
@@ -202,12 +210,14 @@ export function hitungHppProdukDariKonteks(
   const entri = konteks.produk.find((p) => p.id === produkId);
   if (!entri) return null;
 
-  const bahanMap = new Map(konteks.bahan.map((b) => [b.id, D(b.hargaPerSatuan)]));
+  const bahanMap = new Map(
+    konteks.bahan.map((b) => [b.id, { nama: b.nama, harga: D(b.hargaPerSatuan) }]),
+  );
   const resepMap = new Map<string, { nama: string; hasilGram: string; biayaPerGram: Decimal }>();
   for (const r of konteks.resep) {
     const items = r.items.map((i) => ({
       takaranDasar: i.takaranDasar,
-      hargaPerSatuan: D(bahanMap.get(i.bahanId) ?? '0'),
+      hargaPerSatuan: bahanMap.get(i.bahanId)?.harga ?? D(0),
     }));
     const { biayaPerGram } = biayaAdonan({ items, hasilGram: r.hasilGram });
     resepMap.set(r.id, { nama: r.nama, hasilGram: String(r.hasilGram), biayaPerGram });
@@ -226,15 +236,15 @@ export function hitungHppProdukDariKonteks(
         hasilGram: r.hasilGram,
       };
     }
-    const harga = bahanMap.get(k.bahanId!);
-    if (!harga) throw new Error(`Bahan ${k.bahanId} tidak ditemukan`);
+    const infoBahan = bahanMap.get(k.bahanId!);
+    if (!infoBahan) throw new Error(`Bahan ${k.bahanId} tidak ditemukan`);
     return {
       jenis: 'bahan' as const,
       peran: k.peran,
       bahanId: k.bahanId!,
-      namaBahan: '',
+      namaBahan: infoBahan.nama,
       takaranDasar: k.takaranDasar,
-      hargaPerSatuan: harga,
+      hargaPerSatuan: infoBahan.harga,
     };
   });
 
@@ -269,6 +279,7 @@ export async function hppSemuaProduk(
       target,
       diBawahTarget,
       saranHarga: saran,
+      rincian: r,
     });
   }
   return hasil;

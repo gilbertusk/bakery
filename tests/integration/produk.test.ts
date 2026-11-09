@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  auditLog,
   bahan,
   konversiSatuan,
   produk as produkTable,
@@ -230,6 +231,12 @@ describe('simpanProduk', () => {
       .from(produkKomponen)
       .where(eq(produkKomponen.produkId, dibuat.data.id));
     expect(komponen).toEqual([{ bahanId: gula.id, peran: 'kemasan' }]);
+
+    const audit = await testDb
+      .select({ dataLama: auditLog.dataLama, dataBaru: auditLog.dataBaru })
+      .from(auditLog)
+      .where(eq(auditLog.recordId, dibuat.data.id));
+    expect(audit).toEqual([{ dataLama: { hargaJual: '10000' }, dataBaru: { hargaJual: '20000' } }]);
   });
 
   it('nama duplikat ditolak dan id tidak ada ditolak', async () => {
