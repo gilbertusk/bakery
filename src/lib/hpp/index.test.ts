@@ -23,6 +23,10 @@ describe('@/lib/hpp', () => {
       'kebutuhanUntukPesanan',
       'hitungHppSemua',
       'simulasiKenaikan',
+      'simulasiBiayaTambahan',
+      'hppAddOn',
+      'hitungItemDenganAddOn',
+      'kebutuhanBahanAddOn',
     ]) {
       expect(typeof hpp[nama as keyof typeof hpp], nama).toBe('function');
     }

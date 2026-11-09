@@ -1,7 +1,7 @@
-import { eq } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { bahan, stokMutasi } from '@/db/schema';
+import { addOn, bahan, stokMutasi } from '@/db/schema';
 import { seedContoh } from '@/db/seed/contoh';
 import { hitungUlangSaldo } from '@/lib/stok';
 
@@ -30,5 +30,38 @@ describe('seed data contoh', () => {
 
     const [tepung] = semuaBahan.filter((b) => b.nama === 'Tepung Terigu');
     expect(tepung?.stok).toBe('5000.000');
+  });
+
+  it('add-on contoh Extra keju dan Extra coklat dibuat sekali', async () => {
+    await seedContoh(testDb);
+    await seedContoh(testDb);
+
+    const daftar = await testDb
+      .select({
+        nama: addOn.nama,
+        namaBahan: bahan.nama,
+        takaranDasar: addOn.takaranDasar,
+        harga: addOn.harga,
+        aktif: addOn.aktif,
+      })
+      .from(addOn)
+      .innerJoin(bahan, eq(bahan.id, addOn.bahanId))
+      .orderBy(asc(addOn.nama));
+    expect(daftar).toEqual([
+      {
+        nama: 'Extra coklat',
+        namaBahan: 'Coklat Batang',
+        takaranDasar: '15.000',
+        harga: 2_000,
+        aktif: true,
+      },
+      {
+        nama: 'Extra keju',
+        namaBahan: 'Keju Parut',
+        takaranDasar: '20.000',
+        harga: 3_000,
+        aktif: true,
+      },
+    ]);
   });
 });

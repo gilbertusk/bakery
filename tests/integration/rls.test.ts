@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { testSql } from './setup/db';
 
 const EXPECTED_PUBLIC_TABLES = [
+  'add_on',
   'audit_log',
   'bahan',
   'biaya_tambahan',
@@ -17,9 +18,11 @@ const EXPECTED_PUBLIC_TABLES = [
   'pengguna',
   'penjualan',
   'penjualan_item',
+  'penjualan_item_add_on',
   'po_pembayaran',
   'pre_order',
   'pre_order_item',
+  'pre_order_item_add_on',
   'produk',
   'produk_komponen',
   'produksi',
