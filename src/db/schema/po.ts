@@ -9,11 +9,13 @@ import {
   text,
   time,
   timestamp,
+  unique,
   uuid,
 } from 'drizzle-orm/pg-core';
 
 import { dibuatOleh, dibuatPada, diubahPada, id } from './_kolom';
 import { jenisBayarPoEnum, metodeBayarEnum, statusBayarEnum, statusPoEnum } from './enums';
+import { addOn } from './master';
 import { penjualan } from './penjualan';
 import { produk } from './resep';
 import { pengguna } from './sistem';
@@ -68,6 +70,29 @@ export const preOrderItem = pgTable(
     dibuatPada: dibuatPada(),
   },
   (table) => [check('pre_order_item_qty_check', sql`${table.qty} > 0`)],
+);
+
+/** HPP tidak disimpan; disalin saat PO diambil menjadi penjualan. */
+export const preOrderItemAddOn = pgTable(
+  'pre_order_item_add_on',
+  {
+    id: id(),
+    preOrderItemId: uuid('pre_order_item_id')
+      .notNull()
+      .references(() => preOrderItem.id, { onDelete: 'cascade' }),
+    addOnId: uuid('add_on_id')
+      .notNull()
+      .references(() => addOn.id, { onDelete: 'restrict' }),
+    hargaNormal: integer('harga_normal').notNull(),
+    harga: integer('harga').notNull(),
+    dibuatPada: dibuatPada(),
+  },
+  (table) => [
+    unique('pre_order_item_add_on_item_add_on_unique').on(table.preOrderItemId, table.addOnId),
+    index('pre_order_item_add_on_add_on_idx').on(table.addOnId),
+    check('pre_order_item_add_on_harga_normal_check', sql`${table.hargaNormal} >= 0`),
+    check('pre_order_item_add_on_harga_check', sql`${table.harga} >= 0`),
+  ],
 );
 
 export const poPembayaran = pgTable(

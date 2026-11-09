@@ -1,7 +1,8 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 
 import type { Db, Tx } from '@/db/client';
 import {
+  addOn,
   bahan,
   konversiSatuan,
   produk,
@@ -226,6 +227,28 @@ export async function seedContoh(database: Db) {
         .where(and(eq(produkKomponen.produkId, component.produkId), targetCondition))
         .limit(1);
       if (!existing) await tx.insert(produkKomponen).values(component);
+    }
+
+    const addOns = [
+      { nama: 'Extra keju', bahan: 'Keju Parut', takaran: '20', harga: 3_000 },
+      { nama: 'Extra coklat', bahan: 'Coklat Batang', takaran: '15', harga: 2_000 },
+    ];
+    for (const data of addOns) {
+      const target = bahanByName.get(data.bahan);
+      if (!target) throw new Error(`Bahan add-on tidak ditemukan: ${data.bahan}`);
+      const [existing] = await tx
+        .select({ id: addOn.id })
+        .from(addOn)
+        .where(eq(sql`lower(${addOn.nama})`, data.nama.toLowerCase()))
+        .limit(1);
+      if (existing) continue;
+      await tx.insert(addOn).values({
+        nama: data.nama,
+        bahanId: target.id,
+        takaran: data.takaran,
+        takaranDasar: data.takaran,
+        harga: data.harga,
+      });
     }
 
     for (const data of BAHAN_CONTOH) {

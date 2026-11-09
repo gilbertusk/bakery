@@ -1,9 +1,9 @@
 import { relations } from 'drizzle-orm';
 
 import { kas, kategoriKas } from './kas';
-import { bahan, konversiSatuan, supplier } from './master';
-import { penjualan, penjualanItem } from './penjualan';
-import { invoice, poPembayaran, preOrder, preOrderItem } from './po';
+import { addOn, bahan, konversiSatuan, supplier } from './master';
+import { penjualan, penjualanItem, penjualanItemAddOn } from './penjualan';
+import { invoice, poPembayaran, preOrder, preOrderItem, preOrderItemAddOn } from './po';
 import { biayaTambahan, produk, produkKomponen, resepAdonan, resepAdonanItem } from './resep';
 import { auditLog, pengguna } from './sistem';
 import {
@@ -48,6 +48,7 @@ export const bahanRelations = relations(bahan, ({ many, one }) => ({
   konversiSatuan: many(konversiSatuan),
   resepAdonanItems: many(resepAdonanItem),
   produkKomponen: many(produkKomponen),
+  addOn: many(addOn),
   pembelianItems: many(pembelianItem),
   riwayatHarga: many(riwayatHarga),
   stokMutasi: many(stokMutasi),
@@ -58,6 +59,17 @@ export const konversiSatuanRelations = relations(konversiSatuan, ({ many, one })
   bahan: one(bahan, { fields: [konversiSatuan.bahanId], references: [bahan.id] }),
   resepAdonanItems: many(resepAdonanItem),
   produkKomponen: many(produkKomponen),
+  addOn: many(addOn),
+}));
+
+export const addOnRelations = relations(addOn, ({ many, one }) => ({
+  bahan: one(bahan, { fields: [addOn.bahanId], references: [bahan.id] }),
+  konversiSatuan: one(konversiSatuan, {
+    fields: [addOn.konversiSatuanId],
+    references: [konversiSatuan.id],
+  }),
+  penjualanItemAddOn: many(penjualanItemAddOn),
+  preOrderItemAddOn: many(preOrderItemAddOn),
 }));
 
 export const resepAdonanRelations = relations(resepAdonan, ({ many, one }) => ({
@@ -185,12 +197,21 @@ export const penjualanRelations = relations(penjualan, ({ many, one }) => ({
   invoice: many(invoice),
 }));
 
-export const penjualanItemRelations = relations(penjualanItem, ({ one }) => ({
+export const penjualanItemRelations = relations(penjualanItem, ({ many, one }) => ({
   penjualan: one(penjualan, {
     fields: [penjualanItem.penjualanId],
     references: [penjualan.id],
   }),
   produk: one(produk, { fields: [penjualanItem.produkId], references: [produk.id] }),
+  addOns: many(penjualanItemAddOn),
+}));
+
+export const penjualanItemAddOnRelations = relations(penjualanItemAddOn, ({ one }) => ({
+  penjualanItem: one(penjualanItem, {
+    fields: [penjualanItemAddOn.penjualanItemId],
+    references: [penjualanItem.id],
+  }),
+  addOn: one(addOn, { fields: [penjualanItemAddOn.addOnId], references: [addOn.id] }),
 }));
 
 export const preOrderRelations = relations(preOrder, ({ many, one }) => ({
@@ -201,9 +222,18 @@ export const preOrderRelations = relations(preOrder, ({ many, one }) => ({
   invoice: many(invoice),
 }));
 
-export const preOrderItemRelations = relations(preOrderItem, ({ one }) => ({
+export const preOrderItemRelations = relations(preOrderItem, ({ many, one }) => ({
   preOrder: one(preOrder, { fields: [preOrderItem.preOrderId], references: [preOrder.id] }),
   produk: one(produk, { fields: [preOrderItem.produkId], references: [produk.id] }),
+  addOns: many(preOrderItemAddOn),
+}));
+
+export const preOrderItemAddOnRelations = relations(preOrderItemAddOn, ({ one }) => ({
+  preOrderItem: one(preOrderItem, {
+    fields: [preOrderItemAddOn.preOrderItemId],
+    references: [preOrderItem.id],
+  }),
+  addOn: one(addOn, { fields: [preOrderItemAddOn.addOnId], references: [addOn.id] }),
 }));
 
 export const poPembayaranRelations = relations(poPembayaran, ({ one }) => ({

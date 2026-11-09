@@ -1,5 +1,14 @@
 import { sql } from 'drizzle-orm';
-import { boolean, check, numeric, pgTable, text, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+import {
+  boolean,
+  check,
+  integer,
+  numeric,
+  pgTable,
+  text,
+  uniqueIndex,
+  uuid,
+} from 'drizzle-orm/pg-core';
 
 import { dibuatPada, diubahPada, id } from './_kolom';
 import { satuanDasarEnum } from './enums';
@@ -56,5 +65,32 @@ export const konversiSatuan = pgTable(
       sql`lower(${table.namaSatuan})`,
     ),
     check('konversi_satuan_nilai_dasar_check', sql`${table.nilaiDasar} > 0`),
+  ],
+);
+
+/** PRD §6.4a: tambahan pilihan pembeli, tepat satu bahan, berlaku untuk semua produk. */
+export const addOn = pgTable(
+  'add_on',
+  {
+    id: id(),
+    nama: text('nama').notNull(),
+    bahanId: uuid('bahan_id')
+      .notNull()
+      .references(() => bahan.id, { onDelete: 'restrict' }),
+    takaran: numeric('takaran', { precision: 14, scale: 3 }).notNull(),
+    konversiSatuanId: uuid('konversi_satuan_id').references(() => konversiSatuan.id, {
+      onDelete: 'restrict',
+    }),
+    takaranDasar: numeric('takaran_dasar', { precision: 14, scale: 3 }).notNull(),
+    harga: integer('harga').notNull(),
+    aktif: boolean('aktif').notNull().default(true),
+    dibuatPada: dibuatPada(),
+    diubahPada: diubahPada(),
+  },
+  (table) => [
+    uniqueIndex('add_on_nama_unique').on(sql`lower(${table.nama})`),
+    check('add_on_takaran_check', sql`${table.takaran} > 0`),
+    check('add_on_takaran_dasar_check', sql`${table.takaranDasar} > 0`),
+    check('add_on_harga_check', sql`${table.harga} >= 0`),
   ],
 );

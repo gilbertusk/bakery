@@ -36,6 +36,13 @@
       "when": 1793680206924,
       "tag": "0004_trigger_pengguna_baru",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794193058947,
+      "tag": "0005_add_on",
+      "breakpoints": true
     }
   ]
 }

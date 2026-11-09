@@ -1,4 +1,4 @@
-import { Cake, Filter, Plus, Receipt, Search, X } from 'lucide-react';
+import { Cake, Filter, Plus, Puzzle, Receipt, Search, X } from 'lucide-react';
 import type { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -90,6 +90,14 @@ async function IsiProduk({ searchParams }: Pick<PageProps<'/produk'>, 'searchPar
         deskripsi="Atur komponen, lihat HPP, dan kelola margin tiap produk."
         aksi={
           <>
+            <Button
+              variant="outline"
+              className="h-11"
+              nativeButton={false}
+              render={<Link href="/produk/add-on" />}
+            >
+              <Puzzle /> Add-on
+            </Button>
             <Button
               variant="outline"
               className="h-11"

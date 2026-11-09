@@ -202,6 +202,9 @@ Pakai fungsi ini, jangan membuat ulang. `Tx` = transaksi Drizzle (`db.transactio
 - `hasilOtomatis(items: { takaranDasar, satuanDasar, namaBahan }[]): { hasilGram; peringatan: string[] }`: F-RSP-02 KP1
 - `hitungMargin(hpp, hargaJual): { marginRp; marginPersen: Decimal | null }`: persen berupa pecahan
 - `saranHarga(hpp, targetMargin, kelipatan = 500): number`: §7.5, bulat ke atas
+- `hppAddOn({ takaranDasar, hargaPerSatuan }): Decimal`: §7.12, HPP add-on per pcs tanpa overhead
+- `hitungItemDenganAddOn({ qty, hargaSatuan, addOns, diskon })`: harga/subtotal/diskon baris termasuk add-on, HPP add-on per pcs, dan selisih harga kasir; persen dibulatkan ke bawah
+- `kebutuhanBahanAddOn(items): Map<bahanId, Decimal>`: total takaran dasar bahan add-on × qty untuk stok kasir dan rekap PO
 - `faktorSkala(InputSkala): Decimal`: `manual` | `bulat` | `kotak` | `campuran` (rasio luas), §7.6
 - `skalakanItems(items, faktor)`: salinan dengan `takaran`/`takaranDasar` Decimal
 - `hitungHppProduk({ komponen, biayaTambahan }): RincianHpp`: §7.4; `perPeran`, `perKomponen`, `biayaBahan`, `overhead { perPcs, persen, perBatch, total }`, `hpp`, `adonanUtama { resepId, pcsPerResep } | null`, `peringatan`. Adonan utama = gram per pcs terbesar; per batch diabaikan (dengan peringatan) bila tanpa adonan atau `pcsPerResep` 0.

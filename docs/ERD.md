@@ -323,6 +323,7 @@ erDiagram
         text nama_produk "snapshot"
         int qty
         int harga_satuan "snapshot"
+        int harga_add_on "sum harga add-on per pcs"
         int diskon_item
         int subtotal
         numeric hpp_satuan "14,2 snapshot"
@@ -640,8 +641,9 @@ Indeks: `(bahan_id, waktu)`, `(produk_id, waktu)`, `(sumber_tipe, sumber_id)`.
 
 **`penjualan_item`**
 
-- `subtotal = qty × (harga_satuan + Σ add_on.harga) − diskon_item`
-- `qty > 0`, `0 ≤ diskon_item ≤ qty × (harga_satuan + Σ add_on.harga)`
+- `harga_add_on` integer, tidak null, default 0, ≥ 0. Cache `Σ penjualan_item_add_on.harga` per pcs; server wajib menjaga kesesuaiannya.
+- `subtotal = qty × (harga_satuan + harga_add_on) − diskon_item`
+- `qty > 0`, `0 ≤ diskon_item ≤ qty × (harga_satuan + harga_add_on)`
 - `hpp_satuan` = HPP produk saat transaksi (snapshot, presisi 2 desimal), **tanpa** add-on
 
 **`penjualan_item_add_on`**

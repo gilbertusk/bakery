@@ -168,6 +168,11 @@ export function pilihanBahan(): Promise<PilihanBahanResep[]> {
   return bahanDenganKonversi(true);
 }
 
+/** Bahan tertentu (aktif atau tidak), mis. bahan yang sudah dipakai data lama. */
+export function pilihanBahanById(ids: string[]): Promise<PilihanBahanResep[]> {
+  return bahanDenganKonversi(false, ids);
+}
+
 export type DetailResep = {
   id: string;
   nama: string;

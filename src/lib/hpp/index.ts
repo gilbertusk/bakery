@@ -1,3 +1,4 @@
+export * from './add-on';
 export * from './adonan';
 export * from './error';
 export * from './harga';

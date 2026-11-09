@@ -7,11 +7,13 @@ import {
   pgTable,
   text,
   timestamp,
+  unique,
   uuid,
 } from 'drizzle-orm/pg-core';
 
 import { dibuatOleh, dibuatPada, id } from './_kolom';
 import { metodeBayarEnum, statusTrxEnum } from './enums';
+import { addOn } from './master';
 import { preOrder } from './po';
 import { produk } from './resep';
 import { pengguna } from './sistem';
@@ -69,6 +71,8 @@ export const penjualanItem = pgTable(
     namaProduk: text('nama_produk').notNull(),
     qty: integer('qty').notNull(),
     hargaSatuan: integer('harga_satuan').notNull(),
+    /** Σ harga add-on per pcs (cache dari penjualan_item_add_on.harga). */
+    hargaAddOn: integer('harga_add_on').notNull().default(0),
     diskonItem: integer('diskon_item').notNull().default(0),
     subtotal: integer('subtotal').notNull(),
     hppSatuan: numeric('hpp_satuan', { precision: 14, scale: 2 }).notNull(),
@@ -76,13 +80,38 @@ export const penjualanItem = pgTable(
   },
   (table) => [
     check('penjualan_item_qty_check', sql`${table.qty} > 0`),
+    check('penjualan_item_harga_add_on_check', sql`${table.hargaAddOn} >= 0`),
     check(
       'penjualan_item_subtotal_check',
-      sql`${table.subtotal} = ${table.qty} * ${table.hargaSatuan} - ${table.diskonItem}`,
+      sql`${table.subtotal} = ${table.qty} * (${table.hargaSatuan} + ${table.hargaAddOn}) - ${table.diskonItem}`,
     ),
     check(
       'penjualan_item_diskon_check',
-      sql`${table.diskonItem} >= 0 AND ${table.diskonItem} <= ${table.qty} * ${table.hargaSatuan}`,
+      sql`${table.diskonItem} >= 0 AND ${table.diskonItem} <= ${table.qty} * (${table.hargaSatuan} + ${table.hargaAddOn})`,
     ),
+  ],
+);
+
+export const penjualanItemAddOn = pgTable(
+  'penjualan_item_add_on',
+  {
+    id: id(),
+    penjualanItemId: uuid('penjualan_item_id')
+      .notNull()
+      .references(() => penjualanItem.id, { onDelete: 'cascade' }),
+    addOnId: uuid('add_on_id')
+      .notNull()
+      .references(() => addOn.id, { onDelete: 'restrict' }),
+    namaAddOn: text('nama_add_on').notNull(),
+    hargaNormal: integer('harga_normal').notNull(),
+    harga: integer('harga').notNull(),
+    hppSatuan: numeric('hpp_satuan', { precision: 14, scale: 2 }).notNull(),
+    dibuatPada: dibuatPada(),
+  },
+  (table) => [
+    unique('penjualan_item_add_on_item_add_on_unique').on(table.penjualanItemId, table.addOnId),
+    index('penjualan_item_add_on_add_on_idx').on(table.addOnId),
+    check('penjualan_item_add_on_harga_normal_check', sql`${table.hargaNormal} >= 0`),
+    check('penjualan_item_add_on_harga_check', sql`${table.harga} >= 0`),
   ],
 );
