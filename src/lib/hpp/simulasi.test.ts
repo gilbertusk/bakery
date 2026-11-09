@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { BAHAN, KONTEKS_BROWNIES } from './__fixtures__/brownies';
-import { hitungHppSemua, simulasiKenaikan } from './simulasi';
+import { hitungHppSemua, simulasiBiayaTambahan, simulasiKenaikan } from './simulasi';
 
 describe('hitungHppSemua', () => {
   it('menghitung HPP semua produk dari data mentah', () => {
@@ -119,5 +119,107 @@ describe('simulasiKenaikan', () => {
     expect(() =>
       simulasiKenaikan(KONTEKS_BROWNIES, [{ bahanId: BAHAN.keju.id, persen: -101 }]),
     ).toThrow('Penurunan harga maksimal 100%');
+  });
+});
+
+describe('simulasiBiayaTambahan', () => {
+  const GAS = { nama: 'Gas', metode: 'per_pcs' as const, nilai: '200' };
+  const denganGasCup = {
+    ...KONTEKS_BROWNIES,
+    produk: KONTEKS_BROWNIES.produk.map((p) =>
+      p.id === 'cup' ? { ...p, biayaTambahan: [{ id: 'gas', ...GAS }] } : p,
+    ),
+  };
+
+  it('biaya baru per batch untuk semua produk → dibagi pcs per resep, urut selisih terbesar', () => {
+    const hasil = simulasiBiayaTambahan(KONTEKS_BROWNIES, {
+      id: null,
+      produkId: null,
+      aktif: true,
+      biaya: { nama: 'Listrik oven', metode: 'per_batch', nilai: '2400' },
+    });
+    // Cup 24 pcs/resep, Loyang 1, Bites 48, Bolu Potong 12
+    expect(hasil.map((h) => [h.produkId, h.selisih.toString()])).toEqual([
+      ['loyang', '2400'],
+      ['bolu-potong', '200'],
+      ['cup', '100'],
+      ['bites', '50'],
+    ]);
+  });
+
+  it('biaya khusus satu produk hanya mengubah produk itu', () => {
+    const hasil = simulasiBiayaTambahan(KONTEKS_BROWNIES, {
+      id: null,
+      produkId: 'cup',
+      aktif: true,
+      biaya: { nama: 'Gas', metode: 'per_pcs', nilai: '150' },
+    });
+    expect(hasil).toHaveLength(1);
+    expect(hasil[0]?.produkId).toBe('cup');
+    expect(hasil[0]?.hppLama.toString()).toBe('2606.25');
+    expect(hasil[0]?.hppBaru.toString()).toBe('2756.25');
+    expect(hasil[0]?.marginBaru?.toFixed(4)).toBe('0.4488');
+    expect(hasil[0]?.diBawahTarget).toBe(false);
+  });
+
+  it('biaya baru nonaktif → tidak ada dampak', () => {
+    expect(
+      simulasiBiayaTambahan(KONTEKS_BROWNIES, {
+        id: null,
+        produkId: null,
+        aktif: false,
+        biaya: GAS,
+      }),
+    ).toEqual([]);
+  });
+
+  it('menonaktifkan biaya lama → HPP turun', () => {
+    const hasil = simulasiBiayaTambahan(denganGasCup, {
+      id: 'gas',
+      produkId: 'cup',
+      aktif: false,
+      biaya: GAS,
+    });
+    expect(hasil.map((h) => [h.produkId, h.selisih.toString()])).toEqual([['cup', '-200']]);
+  });
+
+  it('nilai sama → tidak ada dampak; dipindah ke semua produk → produk lain ikut naik', () => {
+    expect(
+      simulasiBiayaTambahan(denganGasCup, { id: 'gas', produkId: 'cup', aktif: true, biaya: GAS }),
+    ).toEqual([]);
+
+    const hasil = simulasiBiayaTambahan(denganGasCup, {
+      id: 'gas',
+      produkId: null,
+      aktif: true,
+      biaya: GAS,
+    });
+    expect(hasil.map((h) => [h.produkId, h.selisih.toString()])).toEqual([
+      ['loyang', '200'],
+      ['bites', '200'],
+      ['bolu-potong', '200'],
+    ]);
+  });
+
+  it('urutan memakai besar selisih, termasuk penurunan', () => {
+    const konteks = {
+      ...KONTEKS_BROWNIES,
+      produk: KONTEKS_BROWNIES.produk.map((p) => ({
+        ...p,
+        biayaTambahan: [{ id: 'oven', nama: 'Oven', metode: 'per_batch' as const, nilai: '2400' }],
+      })),
+    };
+    const hasil = simulasiBiayaTambahan(konteks, {
+      id: 'oven',
+      produkId: null,
+      aktif: false,
+      biaya: { nama: 'Oven', metode: 'per_batch', nilai: '2400' },
+    });
+    expect(hasil.map((h) => [h.produkId, h.selisih.toString()])).toEqual([
+      ['loyang', '-2400'],
+      ['bolu-potong', '-200'],
+      ['cup', '-100'],
+      ['bites', '-50'],
+    ]);
   });
 });
