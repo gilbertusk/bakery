@@ -55,4 +55,24 @@ describe('hitungPratinjauProduk', () => {
     expect(hasil.rincian.hpp.toString()).toBe('0');
     expect(hasil.marginPersen).toBeNull();
   });
+
+  it('menghormati target margin nol', () => {
+    const hasil = hitungPratinjauProduk({
+      hargaJual: '5000',
+      targetMargin: '0',
+      resep: [
+        {
+          id: 'resep-1',
+          nama: 'Adonan',
+          hasilGram: '1000',
+          biayaPerGram: '9',
+        },
+      ],
+      bahan: [],
+      komponen: [{ jenis: 'adonan', resepAdonanId: 'resep-1', gramPerPcs: '500' }],
+    });
+
+    expect(hasil.marginPersen?.toString()).toBe('0.1');
+    expect(hasil.diBawahTarget).toBe(false);
+  });
 });
