@@ -1,4 +1,4 @@
-import { ArrowLeft, Cake, Pencil, Printer, Tag, TriangleAlert } from 'lucide-react';
+import { ArrowLeft, Cake, Pencil, Printer, Receipt, Tag, TriangleAlert } from 'lucide-react';
 import type { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -18,7 +18,7 @@ import { hppSemuaProduk } from '@/features/hpp/queries';
 import { TombolHargaSaran } from '@/features/produk/components/tombol-harga-saran';
 import { detailProduk } from '@/features/produk/queries';
 import { requirePeran } from '@/lib/auth';
-import { formatAngka, formatRupiah } from '@/lib/format';
+import { formatAngka, formatRupiah, formatRupiahDesimal } from '@/lib/format';
 
 export const metadata: Metadata = { title: 'Detail produk' };
 
@@ -158,6 +158,32 @@ async function IsiDetailProduk(props: { params: Promise<{ id: string }> }) {
             <TriangleAlert className="mt-0.5 size-4 shrink-0" /> {peringatan}
           </p>
         ))}
+        {rincian.overhead.total.gt(0) ? (
+          <dl className="text-muted-foreground grid grid-cols-2 gap-1 text-sm">
+            {(
+              [
+                ['Overhead per pcs', rincian.overhead.perPcs],
+                ['Overhead % biaya bahan', rincian.overhead.persen],
+                ['Overhead per resep/batch', rincian.overhead.perBatch],
+              ] as const
+            )
+              .filter(([, nilai]) => nilai.gt(0))
+              .map(([label, nilai]) => (
+                <div key={label} className="contents">
+                  <dt>{label}</dt>
+                  <dd className="text-right tabular-nums">{formatRupiahDesimal(nilai)}</dd>
+                </div>
+              ))}
+          </dl>
+        ) : null}
+        <Button
+          variant="link"
+          className="h-10 w-fit px-0"
+          nativeButton={false}
+          render={<Link href="/produk/biaya-tambahan" />}
+        >
+          <Receipt /> Atur biaya tambahan
+        </Button>
       </section>
 
       {/* Kartu Margin */}

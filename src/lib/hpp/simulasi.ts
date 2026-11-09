@@ -35,7 +35,8 @@ export type KonteksHpp = {
           takaranDasar: NilaiAngka;
         }
     )[];
-    biayaTambahan: readonly InputBiayaTambahan[];
+    /** `id` diisi query agar simulasi bisa mengganti biaya yang sedang diubah. */
+    biayaTambahan: readonly (InputBiayaTambahan & { id?: string })[];
   }[];
 };
 
@@ -111,9 +112,55 @@ export function simulasiKenaikan(
     if (b) hargaBaru.set(bahanId, { ...b, harga: b.harga.times(D(1).plus(p.div(100))) });
   }
 
-  const sebelum = hitungDenganHarga(konteks, hargaLama);
-  const sesudah = hitungDenganHarga(konteks, hargaBaru);
+  const dampak = bandingkan(
+    konteks,
+    hitungDenganHarga(konteks, hargaLama),
+    hitungDenganHarga(konteks, hargaBaru),
+  );
+  return dampak.sort((a, b) => b.selisih.comparedTo(a.selisih));
+}
 
+export type PerubahanBiayaTambahan = {
+  /** Null = biaya baru. */
+  id: string | null;
+  /** Null = berlaku untuk semua produk. */
+  produkId: string | null;
+  aktif: boolean;
+  biaya: InputBiayaTambahan;
+};
+
+/**
+ * F-PRD-06: dampak menambah/mengubah satu biaya tambahan, tanpa menyimpan apa pun.
+ * Hanya produk yang HPP-nya berubah, urut besar selisih menurun.
+ */
+export function simulasiBiayaTambahan(
+  konteks: KonteksHpp,
+  perubahan: PerubahanBiayaTambahan,
+): DampakSimulasi[] {
+  const sesudah: KonteksHpp = {
+    ...konteks,
+    produk: konteks.produk.map((p) => {
+      const biaya = p.biayaTambahan.filter((b) => perubahan.id === null || b.id !== perubahan.id);
+      const berlaku =
+        perubahan.aktif && (perubahan.produkId === null || perubahan.produkId === p.id);
+      return { ...p, biayaTambahan: berlaku ? [...biaya, perubahan.biaya] : biaya };
+    }),
+  };
+
+  const harga = hargaSaatIni(konteks);
+  const dampak = bandingkan(
+    konteks,
+    hitungDenganHarga(konteks, harga),
+    hitungDenganHarga(sesudah, harga),
+  );
+  return dampak.sort((a, b) => b.selisih.abs().comparedTo(a.selisih.abs()));
+}
+
+function bandingkan(
+  konteks: KonteksHpp,
+  sebelum: RincianHpp[],
+  sesudah: RincianHpp[],
+): DampakSimulasi[] {
   const dampak: DampakSimulasi[] = [];
   konteks.produk.forEach((p, i) => {
     const hppLama = (sebelum[i] as RincianHpp).hpp;
@@ -131,5 +178,5 @@ export function simulasiKenaikan(
       diBawahTarget: marginBaru === null || marginBaru.lt(D(p.targetMargin)),
     });
   });
-  return dampak.sort((a, b) => b.selisih.comparedTo(a.selisih));
+  return dampak;
 }

@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { asc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 
 import { type Db, type Tx } from '@/db/client';
 import {
@@ -47,7 +47,7 @@ type KomponenKonteks =
 /** Muat data mentah HPP dalam ≤ 5 query, tanpa N+1. */
 export async function ambilKonteksHpp(
   klien: Klien,
-  { produkIds }: { produkIds?: string[] } = {},
+  { produkIds, hanyaAktif = false }: { produkIds?: string[]; hanyaAktif?: boolean } = {},
 ): Promise<KonteksHpp> {
   // Query 1: produk
   const daftarProduk = await klien
@@ -64,7 +64,12 @@ export async function ambilKonteksHpp(
       )`,
     })
     .from(produk)
-    .where(produkIds?.length ? inArray(produk.id, produkIds) : sql`true`)
+    .where(
+      and(
+        produkIds?.length ? inArray(produk.id, produkIds) : undefined,
+        hanyaAktif ? eq(produk.aktif, true) : undefined,
+      ),
+    )
     .orderBy(asc(produk.nama));
 
   if (daftarProduk.length === 0) {
@@ -140,6 +145,7 @@ export async function ambilKonteksHpp(
   // Query 5: biaya tambahan aktif
   const daftarBiayaTambahan = await klien
     .select({
+      id: biayaTambahan.id,
       produkId: biayaTambahan.produkId,
       nama: biayaTambahan.nama,
       metode: biayaTambahan.metode,
@@ -149,11 +155,14 @@ export async function ambilKonteksHpp(
     .where(eq(biayaTambahan.aktif, true))
     .orderBy(asc(biayaTambahan.nama));
 
-  const biayaByProdukId = new Map<string, Array<{ nama: string; metode: string; nilai: string }>>();
-  for (const b of daftarBiayaTambahan) {
-    const daftar = biayaByProdukId.get(b.produkId ?? '') ?? [];
-    daftar.push({ nama: b.nama, metode: b.metode, nilai: b.nilai });
-    biayaByProdukId.set(b.produkId ?? '', daftar);
+  const biayaByProdukId = new Map<
+    string,
+    Omit<(typeof daftarBiayaTambahan)[number], 'produkId'>[]
+  >();
+  for (const { produkId, ...b } of daftarBiayaTambahan) {
+    const daftar = biayaByProdukId.get(produkId ?? '') ?? [];
+    daftar.push(b);
+    biayaByProdukId.set(produkId ?? '', daftar);
   }
 
   const produkKonteks = daftarProduk.map((p) => {
@@ -181,13 +190,7 @@ export async function ambilKonteksHpp(
       hargaJual: p.hargaJual,
       targetMargin: D(p.targetMargin),
       komponen,
-      biayaTambahan: [...(biayaByProdukId.get('') ?? []), ...(biayaByProdukId.get(p.id) ?? [])].map(
-        (b) => ({
-          nama: b.nama,
-          metode: b.metode as 'per_pcs' | 'persen' | 'per_batch',
-          nilai: b.nilai,
-        }),
-      ),
+      biayaTambahan: [...(biayaByProdukId.get('') ?? []), ...(biayaByProdukId.get(p.id) ?? [])],
     };
   });
 

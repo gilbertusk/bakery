@@ -210,6 +210,7 @@ Pakai fungsi ini, jangan membuat ulang. `Tx` = transaksi Drizzle (`db.transactio
 - `kebutuhanUntukPesanan(produk: { qty, komponen }[]): Map<bahanId, Decimal>`: semua adonan proporsional
 - `KonteksHpp`: data mentah bahan, resep, produk (dipakai query 1.8). `hitungHppSemua(konteks): Map<produkId, RincianHpp>`
 - `simulasiKenaikan(konteks, { bahanId, persen }[]): DampakSimulasi[]`: F-PRD-07, hanya produk berubah, urut selisih menurun
+- `simulasiBiayaTambahan(konteks, { id, produkId, aktif, biaya }): DampakSimulasi[]`: F-PRD-06, ganti/tambah satu biaya tambahan (`id` null = baru, `produkId` null = semua produk), urut besar selisih menurun. Dipakai `pratinjauDampakBiaya`
 - `KONVERSI_UMUM` (`@/lib/hpp/konversi-umum`): saran konversi sdm/cup
 - Fixture test Brownies: `src/lib/hpp/__fixtures__/brownies.ts`
 

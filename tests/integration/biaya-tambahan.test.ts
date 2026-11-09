@@ -282,20 +282,21 @@ describe('pratinjauDampakBiaya', () => {
       data: {
         jumlahProduk: 2,
         rataRataSelisih: '150',
+        // Selisih sama → urutan nama produk
         produk: [
-          {
-            produkId: cup.id,
-            nama: 'Brownies Cup',
-            hppLama: '1000',
-            hppBaru: '1150',
-            selisih: '150',
-            diBawahTarget: false,
-          },
           {
             produkId: bites.id,
             nama: 'Brownies Bites',
             hppLama: '250',
             hppBaru: '400',
+            selisih: '150',
+            diBawahTarget: false,
+          },
+          {
+            produkId: cup.id,
+            nama: 'Brownies Cup',
+            hppLama: '1000',
+            hppBaru: '1150',
             selisih: '150',
             diBawahTarget: false,
           },
