@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, History, PackageSearch } from 'lucide-react';
+import { ArrowLeft, ArrowRight, FlaskConical, History, PackageSearch } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -121,6 +121,16 @@ async function IsiDetail({ params }: Pick<PageProps<'/bahan/[id]'>, 'params'>) {
             {bahan.kategori}
             <BadgeNonaktif aktif={bahan.aktif} />
           </span>
+        }
+        aksi={
+          <Button
+            variant="outline"
+            className="h-11"
+            nativeButton={false}
+            render={<Link href={`/produk/simulasi?bahanId=${bahan.id}`} />}
+          >
+            <FlaskConical /> Simulasikan kenaikan bahan ini
+          </Button>
         }
       />
       <Tabs defaultValue="info">

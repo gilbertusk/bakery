@@ -259,6 +259,9 @@ Pakai fungsi ini, jangan membuat ulang. `Tx` = transaksi Drizzle (`db.transactio
   - `hppSemuaProduk(klien, { produkIds }): Map<produkId, { hpp, marginRp, marginPersen, target, diBawahTarget, saranHarga }>`: ringkasan HPP + margin semua produk.
   - `hppUntukSnapshot(klien, produkIds): Map<produkId, string>`: HPP 2 desimal untuk snapshot transaksi.
   - `ubahHargaJual({ id, hargaJual })`: ubah harga jual produk dengan audit, hanya pemilik.
+- `@/features/simulasi`:
+  - `simulasikanHargaBahan({ perubahan: { bahanId, persen }[] })`: read-only, hanya pemilik; produk aktif saja; mengembalikan HPP/margin lama → baru, status target, dan saran harga.
+  - `pilihanBahanSimulasi()`: semua bahan (termasuk nonaktif) untuk simulasi dan praisian dari detail bahan.
 - `@/features/bahan/saran-konversi`: `saranKonversiUntuk({ nama, kategori, satuanDasar })`, menyaring `KONVERSI_UMUM`; hasil adalah perkiraan yang perlu dicek dengan timbangan.
 
 **Lainnya**
