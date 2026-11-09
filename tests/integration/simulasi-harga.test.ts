@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { bahan, produk } from '@/db/schema';
+import { bahan, pengaturanToko, produk } from '@/db/schema';
 import { seedContoh } from '@/db/seed/contoh';
 import { simulasikanHargaBahan } from '@/features/simulasi/actions';
 import { pilihanBahanSimulasi } from '@/features/simulasi/queries';
@@ -34,6 +34,13 @@ beforeEach(async () => {
     email: `${pemilikId}@contoh.test`,
     peran: 'pemilik',
   });
+  await testDb
+    .insert(pengaturanToko)
+    .values({ id: 1, targetMarginDefault: '0.3000' })
+    .onConflictDoUpdate({
+      target: pengaturanToko.id,
+      set: { targetMarginDefault: '0.3000' },
+    });
   await seedContoh(testDb);
 });
 
