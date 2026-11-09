@@ -492,4 +492,21 @@ describe('unggahFotoProduk', () => {
       error: 'Produk tidak ditemukan',
     });
   });
+
+  it('kasir ditolak mengunggah foto produk', async () => {
+    const id = await produkDenganFoto();
+    const file = new File([new ArrayBuffer(100)], 'foto.jpg', { type: 'image/jpeg' });
+    getPenggunaMock.mockResolvedValue(KASIR);
+
+    await expect(unggahFotoProduk({ id, file })).resolves.toEqual({
+      ok: false,
+      error: 'Anda tidak berwenang melakukan aksi ini',
+    });
+
+    const [produk] = await testDb
+      .select({ fotoUrl: produkTable.fotoUrl })
+      .from(produkTable)
+      .where(eq(produkTable.id, id));
+    expect(produk?.fotoUrl).toBeNull();
+  });
 });

@@ -6,12 +6,19 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import * as schema from '@/db/schema';
 import {
   bahan,
+  biayaTambahan,
+  pengaturanToko,
   produk as produkTable,
   produkKomponen,
   resepAdonan,
   resepAdonanItem,
 } from '@/db/schema';
-import { hppSemuaProduk, hppUntukSnapshot } from '@/features/hpp/queries';
+import {
+  ambilKonteksHpp,
+  hitungHppProdukDariKonteks,
+  hppSemuaProduk,
+  hppUntukSnapshot,
+} from '@/features/hpp/queries';
 import { ubahHargaJual } from '@/features/hpp/actions';
 import { getPengguna } from '@/lib/auth/pengguna';
 
@@ -216,6 +223,96 @@ describe('hppSemuaProduk', () => {
     } finally {
       tutup();
     }
+  });
+
+  it('memakai target margin default toko saat produk tidak punya target', async () => {
+    await testDb
+      .update(pengaturanToko)
+      .set({ targetMarginDefault: '0.4200' })
+      .where(eq(pengaturanToko.id, 1));
+    const [produk] = await testDb
+      .insert(produkTable)
+      .values({
+        nama: 'Produk Target Default',
+        kategori: 'kue',
+        hargaJual: 10000,
+        targetMargin: null,
+        dijual: true,
+        aktif: true,
+      })
+      .returning();
+    if (!produk) throw new Error('Gagal membuat produk');
+
+    const hasil = await hppSemuaProduk(testDb);
+
+    expect(hasil.get(produk.id)?.target.toFixed(4)).toBe('0.4200');
+  });
+
+  it('menggabungkan overhead global dan khusus produk serta mempertahankan label komponen', async () => {
+    const { produk } = await buatFixtureLengkap();
+    await testDb.insert(biayaTambahan).values([
+      { nama: 'Listrik global', metode: 'per_pcs', nilai: '100', produkId: null, aktif: true },
+      {
+        nama: 'Gas khusus',
+        metode: 'per_pcs',
+        nilai: '200',
+        produkId: produk.id,
+        aktif: true,
+      },
+    ]);
+
+    const konteks = await ambilKonteksHpp(testDb, { produkIds: [produk.id] });
+    const rincian = hitungHppProdukDariKonteks(konteks, produk.id);
+
+    expect(rincian?.overhead.total.toString()).toBe('300');
+    expect(rincian?.hpp.toString()).toBe('2906.25');
+    expect(rincian?.perKomponen.map((item) => item.label)).toEqual([
+      'Brownies Panggang',
+      'Kemasan Cup Plastik',
+    ]);
+  });
+
+  it('menghitung 100 produk sintetis dalam kurang dari 300 ms', async () => {
+    const { resep, produk, idBahan } = await buatFixtureLengkap();
+    const produkTambahan = await testDb
+      .insert(produkTable)
+      .values(
+        Array.from({ length: 99 }, (_, index) => ({
+          nama: `Produk Sintetis ${String(index + 1).padStart(2, '0')}`,
+          kategori: 'kue',
+          hargaJual: 5000,
+          targetMargin: null,
+          dijual: true,
+          aktif: true,
+        })),
+      )
+      .returning({ id: produkTable.id });
+    await testDb.insert(produkKomponen).values(
+      produkTambahan.flatMap((item) => [
+        {
+          produkId: item.id,
+          peran: 'adonan' as const,
+          resepAdonanId: resep.id,
+          takaran: '50',
+          takaranDasar: '50',
+        },
+        {
+          produkId: item.id,
+          peran: 'kemasan' as const,
+          bahanId: idBahan.get('kemasan-cup')!,
+          takaran: '1',
+          takaranDasar: '1',
+        },
+      ]),
+    );
+
+    const mulai = performance.now();
+    const hasil = await hppSemuaProduk(testDb);
+    const durasiMs = performance.now() - mulai;
+
+    expect(hasil).toHaveLength(100);
+    expect(hasil.has(produk.id)).toBe(true);
+    expect(durasiMs).toBeLessThan(300);
   });
 
   it('produk tanpa komponen masih dikembalikan dengan HPP nol', async () => {
